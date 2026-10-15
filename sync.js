@@ -101,7 +101,8 @@ window.DonguSync = (() => {
       const p = await pairOf(code);
       await fetch(CFG.ntfy, {
         method: 'POST',
-        body: JSON.stringify({ topic: p.topic, title, message, tags: ['love_letter'], click: location.origin + location.pathname }),
+        // click yok: iPhone'da Safari açılırsa ana ekran uygulamasının verisini görmez, kafa karıştırır
+        body: JSON.stringify({ topic: p.topic, title, message, tags: ['love_letter'] }),
       });
     },
   };
