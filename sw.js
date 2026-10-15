@@ -1,9 +1,10 @@
 // Çevrimdışı çalışma: dosyaları önbellekten ver, arkada güncelle.
-const CACHE = 'dongumuz-v2';
+const CACHE = 'dongumuz-v3';
 const FILES = ['./', 'index.html', 'app.css', 'app.js', 'content.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache:'reload' -> tarayıcının HTTP önbelleğini atla, yeni sürümü sunucudan al
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -15,7 +16,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(caches.open(CACHE).then(async cache => {
     const hit = await cache.match(req, { ignoreSearch: true });
-    const fresh = fetch(req).then(res => { if (res.ok) cache.put(req, res.clone()); return res; }).catch(() => hit);
+    const fresh = fetch(req.url, { cache: 'no-cache' }).then(res => { if (res.ok) cache.put(req, res.clone()); return res; }).catch(() => hit);
     return hit || fresh;
   }));
 });
