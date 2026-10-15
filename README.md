@@ -9,7 +9,7 @@ Merve ve Murat için regl takip uygulaması. iPhone'da Safari'den **Ana Ekrana E
 3. Ana ekrandaki "Döngümüz" simgesinden aç.
    - Merve: **Ben Merve** → son regl tarihi ve süre. Ana sayfada 10 karakterlik bir bağlantı kodu çıkar.
    - Murat: **Ben Murat** → o kodu yazar → **Bağlan**. Murat hiçbir tarih girmez.
-4. (İsteğe bağlı) Murat App Store'dan **ntfy**'ı kurar ve Ayarlar'daki konu adına abone olur: Merve istek gönderince bildirim düşer.
+4. (İsteğe bağlı, sadece Murat) App Store'dan **ntfy**'ı kurar ve Ayarlar'daki konu adına abone olur: Merve istek gönderince bildirim düşer.
 
 Uygulamayı mutlaka Ana Ekran'dan kullanın: Safari sekmesinde tutulan veriler iOS tarafından bir süre kullanılmayınca silinebilir, Ana Ekran uygulamasındakiler kalıcıdır.
 

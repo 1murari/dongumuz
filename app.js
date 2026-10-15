@@ -864,7 +864,7 @@
       h += `<section class="card"><h2>🔗 ${ek(s.him, 'le')} bağlantı</h2>
         <p class="small">${S.pair && S.pair.linked ? `✓ ${esc(s.him)} bağlı.` : `${esc(s.him)} henüz bağlanmadı. Kendi uygulamasında <b>Ben ${esc(s.him)}</b> deyip bu kodu girsin:`}</p>
         ${S.pair ? `<div class="code">${SY.showCode(S.pair.code)}</div>` : ''}
-        <p class="tiny muted">Kayıtların şifrelenip ${ek(s.him, 'in')} uygulamasına kendiliğinden gider. İsteklerinde telefonuna bildirim düşer (ntfy kurduysa).</p>
+        <p class="tiny muted">Kayıtların şifrelenip ${ek(s.him, 'in')} uygulamasına kendiliğinden gider. İstek gönderdiğinde ${ek(s.him, 'in')} telefonuna bildirim düşer; senin ayrıca bir şey kurmana gerek yok.</p>
         <button class="btn block" style="margin-top:10px" data-a="newCode">Yeni kod oluştur</button></section>`;
       h += `<section class="card"><h2>🔁 Döngü</h2><p class="small muted">Başlangıç değerleri. Kayıt ekledikçe uygulama senin gerçek ortalamanı öğrenir.</p><div class="stack" style="margin-top:12px">
         <label class="f">Döngü uzunluğu${stepper('set.cycle', s.cycle, 20, 45, 'gün')}</label>
