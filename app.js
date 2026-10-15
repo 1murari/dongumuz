@@ -886,7 +886,7 @@
     return `<div class="ob"><div class="logo">🌸💙</div><h1>Döngümüz</h1>
       <p class="lead">${esc(her)} ve ${esc(him)} için regl takibi.<br>Veriler sadece bu telefonda kalır.</p>
       <button class="role" data-a="obRole" data-v="merve"><span class="e">🌸</span><span><b>Ben ${esc(her)}</b><span class="muted small">Döngümü takip edeceğim</span></span></button>
-      <button class="role" data-a="obRole" data-v="murat"><span class="e">💙</span><span><b>Ben ${esc(him)}</b><span class="muted small">${ek(her, 'i')} destekleyeceğim</span></span></button>
+      <button class="role" data-a="obRole" data-v="murat"><span class="e">💙</span><span><b>Ben ${esc(him)}</b></span></button>
       <details class="card"><summary class="small muted">İsimleri değiştir</summary><div class="btn-row" style="margin-top:10px">
         <input class="in" data-in="set.her" value="${esc(her)}" aria-label="Takip edenin adı"><input class="in" data-in="set.him" value="${esc(him)}" aria-label="Partnerin adı"></div></details></div>`;
   }
