@@ -730,9 +730,12 @@
     let h = top(`Merhaba ${esc(S.set.him)}`, fmtW(T)) + '<main>';
     if (!E || !E.ps.length) {
       return h + `<section class="card"><h2>🔗 ${ek(her, 'in')} döngüsünü bağla</h2>
-        <p class="small">${ek(her, 'in')} telefonunda <b>Ana sayfa → “WhatsApp ile güncelleme gönder”</b>e bassın. Gelen mesajdaki linke dokun ya da mesajı kopyalayıp aşağıdaki düğmeye bas.</p>
-        <button class="btn primary block" style="margin-top:12px" data-a="paste">📋 Mesajı yapıştır</button>
-        <p class="small muted" style="margin-top:12px">Ya da şimdilik Ayarlar’dan son regl tarihini elle gir.</p></section></main>`;
+        <p class="small">Sen hiçbir tarih girmiyorsun; her şeyi ${esc(her)} kendi telefonunda girer.</p>
+        <ol class="small" style="margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+          <li>${esc(her)} uygulamayı kendi telefonuna kurup <b>Ben ${esc(her)}</b> ile başlasın.</li>
+          <li>Ana sayfada <b>“WhatsApp ile güncelleme gönder”</b>e bassın.</li>
+          <li>Gelen mesaja basılı tut → <b>Kopyala</b>, sonra aşağıdaki düğmeye bas.</li></ol>
+        <button class="btn primary block" style="margin-top:14px" data-a="paste">📋 Mesajı yapıştır</button></section></main>`;
     }
     const st = statusOf(E, T), ph = C.PHASES[st.phase], seed = dnum(T);
     const P = S.partner;
@@ -757,7 +760,7 @@
         ${tips.length ? `<h3>Buna göre</h3><ul class="tips">${li(tips)}</ul>` : ''}</section>`;
     }
     h += riskCard(st, E, T);
-    h += `<section class="card"><h2>💬 ${ek(her, 'e')} yaz</h2><div class="stack">${C.HIS_QUICK.map((m, i) => `<button class="btn block" style="justify-content:flex-start" data-a="hisQuick" data-i="${i}">${esc(m)}</button>`).join('')}</div></section>`;
+    h += `<section class="card"><h2>💬 ${ek(her, 'e')} yaz</h2>${S.set.herPhone ? '' : `<label class="f" style="margin-bottom:12px">${ek(her, 'in')} numarası (bir kez)<input class="in" type="tel" placeholder="05xx xxx xx xx" data-in="set.herPhone"></label>`}<div class="stack">${C.HIS_QUICK.map((m, i) => `<button class="btn block" style="justify-content:flex-start" data-a="hisQuick" data-i="${i}">${esc(m)}</button>`).join('')}</div></section>`;
     h += upcomingCard(st, E, T);
     if (st.phase !== 'regl') h += `<section class="card"><h2>🩸 ${esc(her)} regl oldu mu?</h2><p class="small muted">Güncelleme gelmediyse ama regl başladıysa buradan işaretle.</p>
       <button class="btn block" style="margin-top:10px" data-a="herStartToday">Bugün başladı</button></section>`;
@@ -842,10 +845,7 @@
       const P = S.partner;
       h += `<section class="card"><h2>🔗 ${ek(s.her, 'in')} döngüsü</h2>
         <p class="small muted">${P && P.t ? `Son güncelleme ${ago(P.t)}. ` : ''}${esc(s.her)} güncelleme gönderdiğinde mesajı kopyalayıp “Yapıştır”a bas.</p>
-        <button class="btn primary block" style="margin-top:10px" data-a="paste">📋 Mesajı yapıştır</button>
-        ${!P || !P.t ? `<div class="sep"></div><p class="small muted">Elle giriş:</p><div class="stack" style="margin-top:8px">
-          <label class="f">Son regl başlangıcı<input class="in" type="date" max="${today()}" data-in="pm.last" value="${P && P.periods.length ? P.periods[P.periods.length - 1].s : ''}"></label>
-          <label class="f">Döngü uzunluğu${stepper('partner.cycle', (P && P.cycle) || 28, 20, 45, 'gün')}</label></div>` : ''}</section>`;
+        <button class="btn primary block" style="margin-top:10px" data-a="paste">📋 Mesajı yapıştır</button></section>`;
     }
     h += `<section class="card"><h2>🟢 WhatsApp</h2>${`<div class="seg">${[['app', 'Uygulamayı aç'], ['web', 'wa.me linki']].map(([id, t]) => `<button class="${s.wa === id ? 'on' : ''}" data-a="setWa" data-v="${id}">${t}</button>`).join('')}</div>`}
       <p class="tiny muted" style="margin-top:8px">iPhone’da mesaj WhatsApp’ta açılmazsa “wa.me linki”ni seç.</p></section>`;
@@ -871,17 +871,6 @@
           <label class="f">${ek(him, 'in')} WhatsApp numarası<input class="in" type="tel" placeholder="05xx xxx xx xx" data-in="ob.phone" value="${esc(v.phone || '')}"></label>
         </div>
         <button class="btn primary block" data-a="obDone" data-v="merve">Başla</button><button class="btn ghost" data-a="obRole" data-v="role">← Geri</button></div>`;
-    }
-    if (U.ob === 'murat') {
-      return `<div class="ob"><div class="logo">💙</div><h1>Merhaba ${esc(him)}</h1>
-        <p class="lead">${ek(her, 'in')} telefonundaki uygulamadan gelen WhatsApp mesajındaki linke dokun ya da mesajı kopyalayıp aşağıya bas.</p>
-        <button class="btn primary block" data-a="paste">📋 Mesajı yapıştır</button>
-        <div class="card stack"><p class="small muted">Ya da şimdilik elle gir:</p>
-          <label class="f">${ek(her, 'in')} son regli hangi gün başladı?<input class="in" type="date" max="${T}" data-in="ob.last" value="${v.last || ''}"></label>
-          <label class="f">Döngü uzunluğu${stepper('ob.c', v.c || 28, 20, 45, 'gün')}</label>
-          <label class="f">${ek(her, 'in')} WhatsApp numarası<input class="in" type="tel" placeholder="05xx xxx xx xx" data-in="ob.phone" value="${esc(v.phone || '')}"></label>
-          <button class="btn block" data-a="obDone" data-v="murat">Başla</button></div>
-        <button class="btn ghost" data-a="obRole" data-v="role">← Geri</button></div>`;
     }
     return `<div class="ob"><div class="logo">🌸💙</div><h1>Döngümüz</h1>
       <p class="lead">${esc(her)} ve ${esc(him)} için regl takibi.<br>Veriler sadece bu telefonda kalır.</p>
@@ -930,7 +919,7 @@
   const VIEWS_HER = { home: vMerveHome, cal: vCal, log: vLog, ask: vAsk, stats: vStats, settings: vSettings, guide: vGuide };
   const VIEWS_HIM = { home: vHisHome, cal: vCal, guide: vGuide, settings: vSettings };
   function render() {
-    document.documentElement.dataset.role = S.role || (U.ob === 'murat' ? 'murat' : 'merve');
+    document.documentElement.dataset.role = S.role || 'merve';
     const app = document.getElementById('app');
     if (!S.role) app.innerHTML = vOnboard();
     else {
@@ -963,11 +952,10 @@
     if (root === 'set') S.set[key] = val;
     else if (root === 'ob') U.obv[key] = val;
     else if (root === 'sh') U.shv[key] = val;
-    else if (root === 'partner') { ensurePartner(); S.partner[key] = val; }
   }
   function getPath(path) {
     const [root, key] = path.split('.');
-    return root === 'set' ? S.set[key] : root === 'ob' ? U.obv[key] : root === 'sh' ? U.shv[key] : S.partner && S.partner[key];
+    return root === 'set' ? S.set[key] : root === 'ob' ? U.obv[key] : U.shv[key];
   }
   function ensurePartner() {
     if (!S.partner) S.partner = { periods: [], cycle: 28, period: 5, luteal: 14, days: {}, cs: {}, t: 0 };
@@ -1095,32 +1083,26 @@
       const { k, n, min, max } = el.dataset;
       const cur = Number(getPath(k)) || Number(k === 'ob.p' ? 5 : k === 'sh.len' ? S.set.period : 28);
       setPath(k, Math.min(Number(max), Math.max(Number(min), cur + Number(n))));
-      if (k.startsWith('set.') || k.startsWith('partner.')) save();
+      if (k.startsWith('set.')) save();
       render();
     },
     tog: el => { S.set[el.dataset.k] = !S.set[el.dataset.k]; save(); render(); },
     setWa: el => { S.set.wa = el.dataset.v; save(); render(); },
 
-    obRole: el => { U.ob = el.dataset.v; U.obv = {}; render(); window.scrollTo(0, 0); },
-    obDone: el => {
+    obRole: el => {
+      if (el.dataset.v === 'murat') { S.role = 'murat'; U.tab = 'home'; save(); render(); window.scrollTo(0, 0); return; } // Murat bir şey girmez
+      U.ob = el.dataset.v; U.obv = {}; render(); window.scrollTo(0, 0);
+    },
+    obDone: () => {
       const v = U.obv, T = today();
-      if (el.dataset.v === 'merve') {
-        if (!v.last) return toast('Son regl tarihini seç');
-        const P = v.p || 5;
-        S.set.period = P; S.set.cycle = v.c || 28;
-        if (v.phone) S.set.himPhone = v.phone;
-        S.periods = [...new Set([v.p1, v.p2].filter(d => d && d < v.last))].map(s => ({ s, e: addDays(s, P - 1) }));
-        S.periods.push({ s: v.last, e: diff(v.last, T) >= P ? addDays(v.last, P - 1) : '' });
-        sortPeriods();
-        S.role = 'merve';
-      } else {
-        if (!v.last) return toast('Tarih seç ya da mesajı yapıştır');
-        ensurePartner();
-        S.partner.periods = [{ s: v.last, e: '' }];
-        S.partner.cycle = v.c || 28;
-        if (v.phone) S.set.herPhone = v.phone;
-        S.role = 'murat';
-      }
+      if (!v.last) return toast('Son regl tarihini seç');
+      const P = v.p || 5;
+      S.set.period = P; S.set.cycle = v.c || 28;
+      if (v.phone) S.set.himPhone = v.phone;
+      S.periods = [...new Set([v.p1, v.p2].filter(d => d && d < v.last))].map(s => ({ s, e: addDays(s, P - 1) }));
+      S.periods.push({ s: v.last, e: diff(v.last, T) >= P ? addDays(v.last, P - 1) : '' });
+      sortPeriods();
+      S.role = 'merve';
       U.tab = 'home';
       save(); render(); window.scrollTo(0, 0);
     },
@@ -1179,11 +1161,6 @@
       const d = U.logDate || today(), n = parseFloat(el.value.replace(',', '.'));
       dayLog(d).temp = n >= 34 && n <= 40 ? n : '';
       cleanDay(d); save(); render();
-    } else if (k === 'pm.last') {
-      if (!el.value) return;
-      ensurePartner();
-      S.partner.periods = [{ s: el.value, e: '' }];
-      save(); render();
     } else if (k === 'import') {
       const f = el.files && el.files[0];
       if (!f) return;
