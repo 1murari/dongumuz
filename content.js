@@ -145,15 +145,6 @@ window.CONTENT = {
     { id: '', t: 'Fark etmez' },
   ],
 
-  // Murat'ın Merve'ye tek tıkla yazabileceği mesajlar
-  HIS_QUICK: [
-    '💛 Nasılsın? Bir şey ister misin?',
-    '🏠 Eve gelirken ne alayım?',
-    '🔥 Sıcak su torbası hazırlayayım mı?',
-    '🍫 Sana çikolata alıyorum, itiraz yok.',
-    '🫶 Seni seviyorum, bugün kendine iyi bak.',
-  ],
-
   PHASES: {
     regl: {
       name: 'Regl', emoji: '🩸',

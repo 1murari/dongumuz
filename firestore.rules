@@ -1,0 +1,15 @@
+rules_version = '2';
+// Sadece /pairs/{64 karakterlik id}/{data|msgs}/{doc} yolları açık.
+// İçerik telefonda şifrelenir; sunucu sadece {c, iv, t} görür. Silme ve listeleme (id bilinmeden) yok.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /pairs/{pairId}/{col}/{docId} {
+      allow get, list: if pairId.size() == 64 && col in ['data', 'msgs'];
+      allow create, update: if pairId.size() == 64 && col in ['data', 'msgs']
+        && request.resource.data.keys().hasOnly(['c', 'iv', 't'])
+        && request.resource.data.t is int
+        && (!('c' in request.resource.data) || (request.resource.data.c is string && request.resource.data.c.size() < 200000));
+      allow delete: if false;
+    }
+  }
+}

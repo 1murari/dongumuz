@@ -31,19 +31,22 @@
     const endV = V.includes(low.slice(-1)), back = 'aıou'.includes(last), round = 'ouöü'.includes(last);
     const hard = 'fstkçşhp'.includes(low.slice(-1));
     const i4 = back ? (round ? 'u' : 'ı') : (round ? 'ü' : 'i'), a2 = back ? 'a' : 'e';
-    const s = { i: (endV ? 'y' : '') + i4, e: (endV ? 'y' : '') + a2, den: (hard ? 't' : 'd') + a2 + 'n', in: (endV ? 'n' : '') + i4 + 'n' }[kind];
+    const s = { i: (endV ? 'y' : '') + i4, e: (endV ? 'y' : '') + a2, den: (hard ? 't' : 'd') + a2 + 'n', in: (endV ? 'n' : '') + i4 + 'n', le: (endV ? 'y' : '') + 'l' + a2 }[kind];
     return `${esc(n)}’${s}`;
   }
 
   // ---------------------------------------------------------------- durum
   const DEFAULTS = () => ({
     role: null,
-    set: { her: 'Merve', him: 'Murat', herPhone: '', himPhone: '', cycle: 28, period: 5, luteal: 14, attach: true, link: true, wa: 'app' },
+    set: { her: 'Merve', him: 'Murat', cycle: 28, period: 5, luteal: 14 },
     periods: [],   // [{s, e}] e: '' -> bitiş girilmedi
     days: {},      // 'YYYY-MM-DD' -> günlük kayıt
     custom: [],    // [{id, t}] kendi eklediği belirtiler
-    reqs: [],      // gönderilen istekler
-    partner: null, // Murat tarafı: Merve'den gelen veri
+    reqs: [],      // gönderilen istekler [{id, t, items, when, sent}]
+    pair: null,    // {code, linked} iki telefonu bağlayan kod
+    partner: null, // Murat tarafı: Merve'nin son durumu
+    inbox: [],     // Murat tarafı: Merve'den gelen istekler
+    inboxSeen: 0,  // Murat'ın en son gördüğü mesaj zamanı
   });
   function load() {
     try {
@@ -53,12 +56,12 @@
     return DEFAULTS();
   }
   let S = load();
-  const U = { tab: 'home', prevTab: 'home', logDate: null, cal: null, req: { items: [], when: '', note: '' }, sheet: null, ob: 'role', obv: {}, shv: {} };
+  const U = { tab: 'home', prevTab: 'home', logDate: null, cal: null, req: { items: [], when: '' }, sheet: null, ob: 'role', obv: {}, shv: {} };
 
-  function save() {
+  function persist() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Kaydedilemedi!'); }
-    refreshSync();
   }
+  function save() { persist(); schedulePush(); }
   let saveTimer;
   const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); };
 
@@ -237,12 +240,9 @@
     return S.periods.find(p => { const end = p.e || addDays(p.s, pLen - 1); return date > end && diff(end, date) <= 3; });
   }
 
-  // ---------------------------------------------------------------- eşitleme (Merve -> Murat, WhatsApp linkiyle)
-  const b64u = bytes => { let s = ''; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
-  const unb64u = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
-  async function pipe(bytes, Stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new Stream('deflate'))).arrayBuffer()); }
-
-  function syncPayload() {
+  // ---------------------------------------------------------------- bağlantı (Merve -> Murat, uçtan uca şifreli; sync.js)
+  const SY = window.DonguSync;
+  function statePayload() {
     const T = today(), d = {};
     const put = (k, L, all) => {
       const o = d[k] || {};
@@ -263,94 +263,92 @@
     }
     const cs = {};
     S.custom.forEach(c => { cs[c.id] = c.t; });
-    return { v: 1, n: S.set.her, h: S.set.him, ph: S.set.herPhone, p: S.periods.slice(-10).map(p => [p.s, p.e || '']), c: S.set.cycle, l: S.set.period, u: S.set.luteal, d, cs, t: Date.now() };
+    return { v: 2, n: S.set.her, h: S.set.him, p: S.periods.slice(-10).map(p => [p.s, p.e || '']), c: S.set.cycle, l: S.set.period, u: S.set.luteal, d, cs, t: Date.now() };
   }
-  let syncCode = '', syncTimer;
-  function refreshSync() {
-    syncCode = '';
-    if (S.role !== 'merve') return;
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(async () => {
-      const bytes = new TextEncoder().encode(JSON.stringify(syncPayload()));
-      try { syncCode = 'z' + b64u(await pipe(bytes, CompressionStream)); } catch (e) { syncCode = 'j' + b64u(bytes); }
-    }, 250);
-  }
-  const appUrl = () => location.origin + location.pathname.replace(/index\.html$/, '');
-  function syncLink() {
-    const code = syncCode || 'j' + b64u(new TextEncoder().encode(JSON.stringify(syncPayload())));
-    return `${appUrl()}#s=${code}`;
-  }
-  async function decodeSync(code) {
-    let bytes = unb64u(code.slice(1));
-    if (code[0] === 'z') bytes = await pipe(bytes, DecompressionStream);
-    return JSON.parse(new TextDecoder().decode(bytes));
-  }
-  async function importCode(code) {
-    let o;
-    try { o = await decodeSync(code); } catch (e) { o = null; }
-    if (!o || o.v !== 1 || !Array.isArray(o.p)) { toast('Güncelleme okunamadı'); return false; }
-    if (S.role === 'merve') { toast(`Bu link ${ek(S.set.him, 'in')} telefonu için`); return false; }
-    if (S.partner && S.partner.t > o.t) { toast('Bu güncelleme eski; daha yenisi zaten var'); return false; }
+  function applyState(o) {
     const days = {};
-    for (const [k, v] of Object.entries(o.d || {})) {
-      days[k] = { flow: v.f || '', pains: v.p || {}, sym: v.s || [], mood: v.m || [], sex: v.x || '', ov: v.o || '' };
-    }
-    S.partner = { periods: o.p.map(([s, e]) => ({ s, e })), cycle: o.c, period: o.l, luteal: o.u, days, cs: o.cs || {}, t: o.t };
+    for (const [k, v] of Object.entries(o.d || {})) days[k] = { flow: v.f || '', pains: v.p || {}, sym: v.s || [], mood: v.m || [], sex: v.x || '', ov: v.o || '' };
+    S.partner = { periods: (o.p || []).map(([s, e]) => ({ s, e })), cycle: o.c, period: o.l, luteal: o.u, days, cs: o.cs || {}, t: o.t };
     if (o.n) S.set.her = o.n;
     if (o.h) S.set.him = o.h;
-    if (o.ph && !S.set.herPhone) S.set.herPhone = o.ph;
-    S.role = 'murat';
-    save();
-    U.tab = 'home';
-    render();
-    toast(`${ek(S.set.her, 'den')} güncelleme alındı ✓`);
-    return true;
+  }
+  const softRender = () => { const a = document.activeElement; if (!a || !a.matches('input,textarea')) render(); };
+
+  // Merve: her kayıttan sonra durumu gönder, bekleyen istekleri yolla
+  let pushTimer, pushing = false;
+  function schedulePush() {
+    if (S.role !== 'merve' || !S.pair) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushNow, 1500);
+  }
+  async function pushNow() {
+    if (S.role !== 'merve' || !S.pair || pushing) return;
+    pushing = true;
+    const before = JSON.stringify([S.pair.linked, S.reqs.map(r => r.sent)]);
+    try {
+      await SY.putState(S.pair.code, statePayload());
+      for (const r of S.reqs.filter(x => !x.sent).reverse()) {
+        await SY.putMsg(S.pair.code, { id: r.id, items: r.items, when: r.when, t: r.t });
+        r.sent = true;
+        SY.notify(S.pair.code, 'Döngümüz', `${S.set.her} senden bir şey istiyor 💌`).catch(() => {});
+      }
+      if (!S.pair.linked && (await SY.isLinked(S.pair.code))) S.pair.linked = Date.now();
+    } catch (e) { /* internet yok: sonra tekrar denenir */ }
+    pushing = false;
+    if (JSON.stringify([S.pair.linked, S.reqs.map(r => r.sent)]) !== before) { persist(); softRender(); }
   }
 
-  // ---------------------------------------------------------------- WhatsApp
-  function phoneNorm(p) {
-    let d = String(p || '').replace(/\D/g, '');
-    if (d.startsWith('00')) d = d.slice(2);
-    if (d.startsWith('0')) d = '90' + d.slice(1);
-    if (d.length === 10 && d[0] === '5') d = '90' + d;
-    return d;
+  // Murat: Merve'nin durumunu ve yeni istekleri çek
+  let pulling = false;
+  async function pullNow(manual) {
+    if (S.role !== 'murat' || !S.pair || pulling) return;
+    pulling = true;
+    try {
+      const st = await SY.getState(S.pair.code);
+      if (st) applyState(st);
+      const last = S.inbox.length ? S.inbox[S.inbox.length - 1].st : 0;
+      const ids = new Set(S.inbox.map(m => m.id));
+      const fresh = (await SY.msgsAfter(S.pair.code, last)).filter(m => !ids.has(m.id));
+      S.inbox = [...S.inbox, ...fresh].slice(-200);
+      S.pair.pulledAt = Date.now();
+      persist();
+      softRender();
+      if (manual) toast('Güncellendi ✓');
+    } catch (e) { if (manual) toast('İnternet bağlantısı yok'); }
+    pulling = false;
   }
-  const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  function sendWA(phone, text) {
-    const n = phoneNorm(phone), t = encodeURIComponent(text);
-    if (!n) toast('Numara kayıtlı değil, kişiyi WhatsApp’ta seçeceksin');
-    if (S.set.wa === 'app' && isIOS()) { location.href = `whatsapp://send?${n ? `phone=${n}&` : ''}text=${t}`; return; }
-    const url = `https://wa.me/${n}?text=${t}`;
-    if (!window.open(url, '_blank')) location.href = url;
+  async function connect(code) {
+    const n = SY.normCode(code);
+    if (n.length !== 10) { toast('Kod 10 karakter olmalı'); return; }
+    toast('Bağlanılıyor…');
+    let st;
+    try { st = await SY.getState(n); } catch (e) { toast('İnternet bağlantısı yok'); return; }
+    if (!st) { toast(`Kod bulunamadı. ${ek(S.set.her, 'in')} ekranındaki kodu kontrol et.`); return; }
+    S.pair = { code: n, topic: await SY.topic(n) };
+    S.inbox = [];
+    S.inboxSeen = 0;
+    applyState(st);
+    persist();
+    SY.ack(n).catch(() => {});
+    U.tab = 'home';
+    render();
+    toast(`${ek(S.set.her, 'e')} bağlandın ✓`);
+    pullNow();
   }
+  function ensurePair() {
+    if (S.role === 'merve' && !S.pair) { S.pair = { code: SY.newCode(), linked: 0 }; persist(); pushNow(); }
+  }
+
   const reqItem = id => { for (const g of C.REQUEST_GROUPS) { const it = g.items.find(x => x.id === id); if (it) return it; } return null; };
-  function todayText(d) {
-    const L = S.days[d];
-    if (!L) return '';
-    const parts = [];
-    for (const [id, lv] of Object.entries(L.pains || {})) { const p = C.PAINS.find(x => x.id === id); if (p) parts.push(`${p.t} (${C.PAIN_LEVELS[lv]})`); }
-    (L.sym || []).forEach(id => { const s = C.SYMPTOMS.find(x => x.id === id) || S.custom.find(x => x.id === id); if (s) parts.push(s.t); });
-    const moods = (L.mood || []).map(id => (C.MOODS.find(x => x.id === id) || {}).t).filter(Boolean);
-    if (moods.length) parts.push('Ruh hali: ' + moods.join(', '));
-    return parts.join(', ');
-  }
-  function requestText(items, when, note, forPreview) {
-    const T = today(), st = statusOf(mE(), T);
-    const lines = [`${S.set.him} 💛`];
-    if (when) lines.push(C.WHEN.find(w => w.id === when).t);
-    items.forEach(id => { const it = reqItem(id); if (it) lines.push(`• ${it.e} ${it.m}`); });
-    if (note) lines.push(`📝 ${note}`);
-    const extra = [];
-    if (S.set.attach) { const tt = todayText(T); if (tt) extra.push(`🩺 Bugün: ${tt}`); }
-    if (st) extra.push(`📅 ${phaseLine(st)}`);
-    if (extra.length) lines.push('', ...extra);
-    if (S.set.link) lines.push('', `🔄 ${forPreview ? '[uygulama güncelleme linki]' : syncLink()}`);
-    return lines.join('\n');
-  }
-  function logRequest(items, when, note) {
-    S.reqs.unshift({ t: Date.now(), items, when, note });
-    S.reqs = S.reqs.slice(0, 20);
-    save();
+  async function sendRequest(items, when) {
+    const r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: Date.now(), items, when, sent: false };
+    S.reqs.unshift(r);
+    S.reqs = S.reqs.slice(0, 30);
+    persist();
+    render();
+    clearTimeout(pushTimer);
+    await pushNow();
+    toast(r.sent ? `${ek(S.set.him, 'e')} gönderildi ✓` : 'İnternet yok; bağlanınca kendiliğinden gönderilecek');
   }
 
   // ---------------------------------------------------------------- simgeler
@@ -365,6 +363,8 @@
     back: '<path d="M15 5l-7 7 7 7"/>',
     left: '<path d="M15 6l-6 6 6 6"/>',
     right: '<path d="M9 6l6 6-6 6"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+    refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',
   };
   const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
 
@@ -377,8 +377,9 @@
   function tabbar() {
     const tabs = S.role === 'merve'
       ? [['home', 'Bugün', 'home'], ['cal', 'Takvim', 'cal'], ['log', 'Kaydet', 'plus'], ['ask', 'İstek', 'heart'], ['stats', 'Analiz', 'chart']]
-      : [['home', 'Bugün', 'home'], ['cal', 'Takvim', 'cal'], ['guide', 'Rehber', 'book'], ['settings', 'Ayarlar', 'sliders']];
-    return `<div class="tabbar"><nav>${tabs.map(([id, t, ic]) => `<button class="${U.tab === id ? 'on' : ''}${id === 'log' ? ' plus' : ''}" data-a="tab" data-v="${id}">${svg(ic)}<span>${t}</span></button>`).join('')}</nav></div>`;
+      : [['home', 'Bugün', 'home'], ['inbox', S.set.her, 'chat'], ['cal', 'Takvim', 'cal'], ['guide', 'Rehber', 'book'], ['settings', 'Ayarlar', 'sliders']];
+    const n = S.role === 'murat' ? unread() : 0;
+    return `<div class="tabbar"><nav>${tabs.map(([id, t, ic]) => `<button class="${U.tab === id ? 'on' : ''}${id === 'log' ? ' plus' : ''}" data-a="tab" data-v="${id}">${svg(ic)}<span>${esc(t)}</span>${id === 'inbox' && n ? `<i class="tab-badge">${n}</i>` : ''}</button>`).join('')}</nav></div>`;
   }
   const li = arr => arr.map(x => `<li>${esc(x)}</li>`).join('');
   const PC = ph => `var(--c-${ph})`;
@@ -553,6 +554,7 @@
     const ph = C.PHASES[st.phase], seed = dnum(T), him = S.set.him;
     const L = S.days[T] || {};
     h += heroCard(st, E, 'merve');
+    h += pairCard();
     h += alerts(st, E, S.days, T, 'merve');
     const quickPains = ['kramp', 'bel', 'bas', 'gogus'].map(id => painChip(C.PAINS.find(p => p.id === id), T, (L.pains || {})[id] || 0)).join('');
     const quickSym = ['siskinlik', 'yorgunluk'].map(id => togChip('sym', C.SYMPTOMS.find(s => s.id === id), T, (L.sym || []).includes(id))).join('');
@@ -562,16 +564,13 @@
       <p class="tiny muted" style="margin-top:8px">Ağrıya her dokunuşta şiddet artar: hafif → orta → şiddetli → kapalı.</p></section>`;
     h += `<section class="card"><h2>💌 ${ek(him, 'den')} iste<button class="right" data-a="tab" data-v="ask">Tümü →</button></h2>
       ${quickTiles()}
-      <p class="tiny muted" style="margin-top:8px">İstediğin kadarını seç, alttaki <b>Gönder</b>’e bas: hepsi tek mesajda WhatsApp’ta ${ek(him, 'e')} gider.</p></section>`;
+      <p class="tiny muted" style="margin-top:8px">İstediğin kadarını seç, alttaki <b>Gönder</b>’e bas: hepsi tek mesajda ${ek(him, 'in')} uygulamasına gider.</p></section>`;
     h += riskCard(st, E, T);
     h += `<section class="card"><h2>${ph.emoji} ${ph.name} fazı: kendin için</h2><p class="small muted">${esc(ph.her)}</p><ul class="tips" style="margin-top:10px">${li(ph.self)}</ul></section>`;
     h += `<section class="card tinted"><h2>💙 ${ek(him, 'in')} bu fazdaki görevi</h2><p class="small">${esc(ph.murat.summary)}</p>
       <ul class="tips" style="margin-top:10px">${li(pick(ph.murat.do, 3, seed))}</ul>
-      <button class="btn wa block" style="margin-top:12px" data-a="sendGuide">Bu rehberi ${ek(him, 'e')} gönder</button>
       <button class="btn ghost block" data-a="tab" data-v="guide">${ek(him, 'in')} tüm rehberini gör →</button></section>`;
     h += upcomingCard(st, E, T);
-    h += `<section class="card"><h2>🔄 ${ek(him, 'in')} uygulaması</h2><p class="small muted">${esc(him)} senin döngünü, gönderdiğin güncellemelerle görür. İsteklerine güncelleme linki otomatik eklenir. Regl başlayınca ve bitince de bir güncelleme gönder.</p>
-      <button class="btn block" style="margin-top:12px" data-a="sendSync">WhatsApp ile güncelleme gönder</button></section>`;
     return h + '</main>';
   }
 
@@ -609,21 +608,24 @@
 
   function vAsk() {
     const him = S.set.him, R = U.req;
-    let h = top(`${ek(him, 'den')} iste`, 'WhatsApp’tan tek dokunuşla', '') + '<main>';
+    let h = top(`${ek(him, 'den')} iste`, `Seç ve gönder: ${ek(him, 'in')} uygulamasına düşer`, '') + '<main>';
     h += `<section class="card"><h2>⚡ Sık istenenler</h2>${quickTiles()}<p class="tiny muted" style="margin-top:8px">Birden fazla seçebilirsin; aşağıdan daha fazlasını da ekle.</p></section>`;
     h += `<section class="card"><h2>🧺 Daha fazla</h2>${C.REQUEST_GROUPS.map(g => `<h3>${g.t}</h3><div class="tiles small">${g.items.map(it => `<button class="tile ${R.items.includes(it.id) ? 'on' : ''}" data-a="reqToggle" data-id="${it.id}"><span class="e">${it.e}</span><span class="t">${it.t}</span></button>`).join('')}</div>`).join('')}
-      <h3>Ne zaman?</h3><div class="chips">${C.WHEN.map(w => `<button class="chip ${R.when === w.id ? 'on' : ''}" data-a="reqWhen" data-v="${w.id}">${w.t}</button>`).join('')}</div>
-      <h3>Not</h3><textarea class="in" data-in="reqNote" placeholder="İstersen bir şey ekle...">${esc(R.note)}</textarea>
-      <div class="toggle" style="margin-top:10px"><span class="small">Bugünkü ağrılarımı ekle</span><button class="sw ${S.set.attach ? 'on' : ''}" data-a="tog" data-k="attach" aria-label="Ağrıları ekle"></button></div>
-      <div class="toggle"><span class="small">${ek(him, 'in')} uygulamasını güncelle (link)</span><button class="sw ${S.set.link ? 'on' : ''}" data-a="tog" data-k="link" aria-label="Güncelleme linki"></button></div>
-      <h3>Önizleme</h3><div class="preview" id="req-preview">${esc(requestText(R.items, R.when, R.note, true))}</div>
-      <button class="btn wa block" style="margin-top:12px" data-a="sendReq" ${R.items.length || R.note ? '' : 'disabled'}>WhatsApp’tan gönder${R.items.length ? ` (${R.items.length})` : ''}</button></section>`;
+      <h3>Ne zaman?</h3><div class="chips">${C.WHEN.map(w => `<button class="chip ${R.when === w.id ? 'on' : ''}" data-a="reqWhen" data-v="${w.id}">${w.t}</button>`).join('')}</div></section>`;
     if (S.reqs.length) {
-      h += `<section class="card"><h2>🕘 Son istekler</h2><div class="list">${S.reqs.slice(0, 6).map((r, i) => `<div class="li"><span class="ic">${(reqItem(r.items[0]) || { e: '📝' }).e}</span>
-        <div class="grow"><div class="t">${r.items.map(id => (reqItem(id) || {}).t).filter(Boolean).join(', ') || esc(r.note)}</div><div class="s">${ago(r.t)}</div></div>
+      h += `<section class="card"><h2>🕘 Son istekler</h2><div class="list">${S.reqs.slice(0, 8).map((r, i) => `<div class="li"><span class="ic">${(reqItem(r.items[0]) || { e: '💌' }).e}</span>
+        <div class="grow"><div class="t">${r.items.map(id => (reqItem(id) || {}).t).filter(Boolean).join(', ')}</div><div class="s">${ago(r.t)} · ${r.sent ? '✓ gönderildi' : '⏳ internet bekleniyor'}</div></div>
         <button class="btn sm" data-a="resendReq" data-i="${i}">Tekrar</button></div>`).join('')}</div></section>`;
     }
     return h + '</main>';
+  }
+  function pairCard() {
+    if (!S.pair || S.pair.linked) return '';
+    const him = esc(S.set.him);
+    return `<section class="card tinted"><h2>🔗 ${ek(S.set.him, 'i')} bağla</h2>
+      <p class="small">${him} kendi telefonunda uygulamayı açıp <b>Ben ${him}</b> desin ve bu kodu girsin:</p>
+      <div class="code">${SY.showCode(S.pair.code)}</div>
+      <p class="tiny muted">Bağlanınca bu kart kaybolur. Kodu Ayarlar’da da bulabilirsin.</p></section>`;
   }
 
   function patterns(E, T) {
@@ -725,23 +727,46 @@
   }
 
   // ---------------------------------------------------------------- ekranlar: Murat
+  function connectCard() {
+    const her = esc(S.set.her);
+    return `<section class="card"><h2>🔗 ${ek(S.set.her, 'e')} bağlan</h2>
+      <p class="small">Sen hiçbir tarih girmiyorsun; her şeyi ${her} kendi telefonunda girer. ${her} uygulamayı açınca ana sayfasında 10 karakterlik bir kod görecek. O kodu buraya yaz:</p>
+      <input class="in code-in" style="margin-top:12px" data-in="ob.code" placeholder="XXXXX-XXXXX" autocapitalize="characters" autocomplete="off" spellcheck="false" value="${esc(U.obv.code || '')}">
+      <button class="btn primary block" style="margin-top:12px" data-a="connect">Bağlan</button></section>`;
+  }
+  const hhmm = ts => { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const isoOf = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const unread = () => S.inbox.filter(m => m.st > S.inboxSeen).length;
+  function msgBubble(m) {
+    const w = m.when && C.WHEN.find(x => x.id === m.when);
+    return `<div class="bubble"><div class="items">${m.items.map(id => { const it = reqItem(id); return it ? `<div>${it.e} ${esc(it.m)}</div>` : ''; }).join('')}</div>
+      <div class="meta">${w ? `<span>${w.t}</span>` : ''}<span>${hhmm(m.t)}</span></div></div>`;
+  }
+
   function vHisHome() {
     const T = today(), E = pE(), her = S.set.her;
     let h = top(`Merhaba ${esc(S.set.him)}`, fmtW(T)) + '<main>';
-    if (!E || !E.ps.length) {
-      return h + `<section class="card"><h2>🔗 ${ek(her, 'in')} döngüsünü bağla</h2>
-        <p class="small">Sen hiçbir tarih girmiyorsun; her şeyi ${esc(her)} kendi telefonunda girer.</p>
-        <ol class="small" style="margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px">
-          <li>${esc(her)} uygulamayı kendi telefonuna kurup <b>Ben ${esc(her)}</b> ile başlasın.</li>
-          <li>Ana sayfada <b>“WhatsApp ile güncelleme gönder”</b>e bassın.</li>
-          <li>Gelen mesaja basılı tut → <b>Kopyala</b>, sonra aşağıdaki düğmeye bas.</li></ol>
-        <button class="btn primary block" style="margin-top:14px" data-a="paste">📋 Mesajı yapıştır</button></section></main>`;
-    }
+    if (!S.pair) return h + connectCard() + '</main>';
+    if (!E || !E.ps.length) return h + `<section class="card"><p class="small">${esc(her)} henüz regl tarihlerini girmemiş. Girdiğinde burada görünecek.</p></section></main>`;
     const st = statusOf(E, T), ph = C.PHASES[st.phase], seed = dnum(T);
-    const P = S.partner;
-    h += `<section class="card tinted row"><div class="grow small">${P.t ? `Son güncelleme: <b>${ago(P.t)}</b>` : 'Elle girilen veri'}</div><button class="btn sm" data-a="paste">📋 Yapıştır</button></section>`;
-    if (P.t && Date.now() - P.t > 35 * 864e5) h += `<section class="card warn"><p class="small">Uzun süredir güncelleme gelmedi. Tahminler eski veriye dayanıyor; ${ek(her, 'den')} bir güncelleme iste.</p></section>`;
+    const P = S.partner, n = unread();
+    if (n) {
+      const last = S.inbox[S.inbox.length - 1];
+      h += `<section class="card tinted"><h2>💌 ${esc(her)} senden istiyor${n > 1 ? ` <span class="badge">${n}</span>` : ''}</h2>${msgBubble(last)}
+        <button class="btn primary block" style="margin-top:12px" data-a="tab" data-v="inbox">Mesajları aç</button></section>`;
+    }
     h += heroCard(st, E, 'murat');
+    // Merve'nin bugünkü işaretleri: mesaj değil, hep burada durur
+    const L = (P.days || {})[T];
+    const has = L && (L.flow || Object.keys(L.pains || {}).length || (L.sym || []).length || (L.mood || []).length);
+    let body;
+    if (has) {
+      const ids = [...Object.entries(L.pains || {}).sort((a, b) => b[1] - a[1]).map(([id]) => id), ...(L.sym || []), ...(L.mood || [])];
+      const tips = [...new Set(ids.map(id => C.HIS_TIPS[id]).filter(Boolean))].slice(0, 5);
+      if (L.flow === 'h') tips.unshift('Yoğun kanama: çok yorulabilir. Ped stoğunu kontrol et, demirli bir yemek hazırla.');
+      body = logSummary(L, P.cs) + (tips.length ? `<h3>Buna göre</h3><ul class="tips">${li(tips)}</ul>` : '');
+    } else body = `<p class="small muted">${esc(her)} bugün henüz bir şey işaretlemedi.</p>`;
+    h += `<section class="card"><h2>🩺 ${esc(her)} bugün<span class="right muted tiny" style="font-weight:500">${P.t ? ago(P.t) : ''}</span></h2>${body}</section>`;
     h += alerts(st, E, P.days || {}, T, 'murat');
     h += `<section class="card"><h2>🎯 Bugün nasıl davranmalısın?</h2><p class="small">${esc(ph.murat.summary)}</p>
       <h3>Yap</h3><ul class="tips">${li(pick(ph.murat.do, 3, seed))}</ul>
@@ -749,22 +774,26 @@
       <h3>Söyleyebileceğin bir cümle</h3><ul class="tips say">${li(pick(ph.murat.say, 1, seed))}</ul>
       ${ph.murat.surprise.length ? `<h3>Sürpriz fikri</h3><ul class="tips say">${li(pick(ph.murat.surprise, 1, seed))}</ul>` : ''}
       <button class="btn ghost" style="margin-top:6px" data-a="tab" data-v="guide">Tüm rehber →</button></section>`;
-    // Merve'nin son kaydı (bugün ya da dün)
-    const recent = [T, addDays(T, -1)].find(d => P.days && P.days[d] && (P.days[d].flow || Object.keys(P.days[d].pains || {}).length || (P.days[d].sym || []).length || (P.days[d].mood || []).length));
-    if (recent) {
-      const L = P.days[recent];
-      const ids = [...Object.entries(L.pains || {}).sort((a, b) => b[1] - a[1]).map(([id]) => id), ...(L.sym || []), ...(L.mood || [])];
-      const tips = [...new Set(ids.map(id => C.HIS_TIPS[id]).filter(Boolean))].slice(0, 5);
-      if (L.flow === 'h') tips.unshift('Yoğun kanama: çok yorulabilir. Ped stoğunu kontrol et, demirli bir yemek hazırla.');
-      h += `<section class="card"><h2>🩺 ${ek(her, 'in')} durumu · ${recent === T ? 'bugün' : 'dün'}</h2>${logSummary(L, P.cs)}
-        ${tips.length ? `<h3>Buna göre</h3><ul class="tips">${li(tips)}</ul>` : ''}</section>`;
-    }
     h += riskCard(st, E, T);
-    h += `<section class="card"><h2>💬 ${ek(her, 'e')} yaz</h2>${S.set.herPhone ? '' : `<label class="f" style="margin-bottom:12px">${ek(her, 'in')} numarası (bir kez)<input class="in" type="tel" placeholder="05xx xxx xx xx" data-in="set.herPhone"></label>`}<div class="stack">${C.HIS_QUICK.map((m, i) => `<button class="btn block" style="justify-content:flex-start" data-a="hisQuick" data-i="${i}">${esc(m)}</button>`).join('')}</div></section>`;
     h += upcomingCard(st, E, T);
-    if (st.phase !== 'regl') h += `<section class="card"><h2>🩸 ${esc(her)} regl oldu mu?</h2><p class="small muted">Güncelleme gelmediyse ama regl başladıysa buradan işaretle.</p>
-      <button class="btn block" style="margin-top:10px" data-a="herStartToday">Bugün başladı</button></section>`;
+    if (!S.set.ntfyHide) h += `<section class="card"><h2>🔔 Bildirim al</h2><p class="small muted">${esc(her)} bir şey istediğinde telefonuna bildirim düşsün mü? Ücretsiz ntfy uygulamasıyla 1 dakikada kurulur.</p>
+      <div class="btn-row" style="margin-top:10px"><button class="btn primary" data-a="tab" data-v="settings">Nasıl kurulur?</button><button class="btn" data-a="hideNtfy">Gizle</button></div></section>`;
     return h + '</main>';
+  }
+
+  function vInbox() {
+    const her = S.set.her;
+    let h = top(`${ek(her, 'den')}`, 'Sadece istekler · buradan yazılamaz', `<button class="icon-btn" data-a="refresh" aria-label="Yenile">${svg('refresh')}</button>`) + '<main>';
+    if (!S.pair) return h + connectCard() + '</main>';
+    if (!S.inbox.length) return h + `<section class="card center"><div style="font-size:40px">💌</div><p class="small muted" style="margin-top:8px">Henüz istek yok. ${esc(her)} “${ek(S.set.him, 'den')} iste” ekranından bir şey gönderince burada görünecek.</p></section></main>`;
+    let day = '', out = '';
+    const T = today();
+    for (const m of S.inbox) {
+      const d = isoOf(m.t);
+      if (d !== day) { day = d; out += `<div class="day-sep">${d === T ? 'Bugün' : d === addDays(T, -1) ? 'Dün' : fmtW(d)}</div>`; }
+      out += msgBubble(m);
+    }
+    return h + `<div class="chat">${out}</div></main>`;
   }
 
   function vGuide() {
@@ -829,29 +858,38 @@
   function vSettings() {
     const s = S.set, merve = S.role === 'merve';
     let h = top('Ayarlar', '', merve ? backBtn() : '') + '<main>';
-    h += `<section class="card"><h2>👥 Kişiler</h2><div class="stack">
-      <div class="btn-row"><label class="f">Takip eden<input class="in" data-in="set.her" value="${esc(s.her)}"></label><label class="f">Partner<input class="in" data-in="set.him" value="${esc(s.him)}"></label></div>
-      ${merve ? `<label class="f">${ek(s.him, 'in')} WhatsApp numarası<input class="in" type="tel" placeholder="05xx xxx xx xx" data-in="set.himPhone" value="${esc(s.himPhone)}"></label>`
-        : `<label class="f">${ek(s.her, 'in')} WhatsApp numarası<input class="in" type="tel" placeholder="05xx xxx xx xx" data-in="set.herPhone" value="${esc(s.herPhone)}"></label>`}</div></section>`;
+    h += `<section class="card"><h2>👥 Kişiler</h2>
+      <div class="btn-row"><label class="f">Takip eden<input class="in" data-in="set.her" value="${esc(s.her)}"></label><label class="f">Partner<input class="in" data-in="set.him" value="${esc(s.him)}"></label></div></section>`;
     if (merve) {
+      h += `<section class="card"><h2>🔗 ${ek(s.him, 'le')} bağlantı</h2>
+        <p class="small">${S.pair && S.pair.linked ? `✓ ${esc(s.him)} bağlı.` : `${esc(s.him)} henüz bağlanmadı. Kendi uygulamasında <b>Ben ${esc(s.him)}</b> deyip bu kodu girsin:`}</p>
+        ${S.pair ? `<div class="code">${SY.showCode(S.pair.code)}</div>` : ''}
+        <p class="tiny muted">Kayıtların şifrelenip ${ek(s.him, 'in')} uygulamasına kendiliğinden gider. İsteklerinde telefonuna bildirim düşer (ntfy kurduysa).</p>
+        <button class="btn block" style="margin-top:10px" data-a="newCode">Yeni kod oluştur</button></section>`;
       h += `<section class="card"><h2>🔁 Döngü</h2><p class="small muted">Başlangıç değerleri. Kayıt ekledikçe uygulama senin gerçek ortalamanı öğrenir.</p><div class="stack" style="margin-top:12px">
         <label class="f">Döngü uzunluğu${stepper('set.cycle', s.cycle, 20, 45, 'gün')}</label>
         <label class="f">Regl süresi${stepper('set.period', s.period, 2, 10, 'gün')}</label>
         <label class="f">Luteal faz (yumurtlamadan regle)${stepper('set.luteal', s.luteal, 10, 16, 'gün')}</label></div></section>`;
-      h += `<section class="card"><h2>💌 İstek mesajları</h2>
-        <div class="toggle"><span class="small">Bugünkü ağrılarımı ekle</span><button class="sw ${s.attach ? 'on' : ''}" data-a="tog" data-k="attach" aria-label="Ağrıları ekle"></button></div>
-        <div class="toggle"><span class="small">${ek(s.him, 'in')} uygulaması için güncelleme linki ekle</span><button class="sw ${s.link ? 'on' : ''}" data-a="tog" data-k="link" aria-label="Güncelleme linki"></button></div></section>`;
     } else {
       const P = S.partner;
-      h += `<section class="card"><h2>🔗 ${ek(s.her, 'in')} döngüsü</h2>
-        <p class="small muted">${P && P.t ? `Son güncelleme ${ago(P.t)}. ` : ''}${esc(s.her)} güncelleme gönderdiğinde mesajı kopyalayıp “Yapıştır”a bas.</p>
-        <button class="btn primary block" style="margin-top:10px" data-a="paste">📋 Mesajı yapıştır</button></section>`;
+      h += S.pair
+        ? `<section class="card"><h2>🔗 ${ek(s.her, 'le')} bağlantı</h2><p class="small">✓ Bağlı${P && P.t ? ` · son güncelleme ${ago(P.t)}` : ''}</p>
+            <div class="btn-row" style="margin-top:10px"><button class="btn" data-a="refresh">Şimdi yenile</button><button class="btn" data-a="unpair">Bağlantıyı kaldır</button></div></section>`
+        : connectCard();
+      if (S.pair && S.pair.topic) {
+        h += `<section class="card"><h2>🔔 Bildirim (ntfy)</h2>
+          <ol class="small" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+            <li>App Store’dan ücretsiz <b>ntfy</b> uygulamasını indir.</li>
+            <li>ntfy’da sağ üstteki <b>＋</b>’ya bas, “Topic name” kutusuna aşağıdaki adı yapıştır, <b>Subscribe</b> de.</li>
+            <li>Bildirim izni sorarsa <b>İzin ver</b>.</li></ol>
+          <div class="code small-code">${esc(S.pair.topic)}</div>
+          <div class="btn-row"><button class="btn" data-a="copyTopic">Adı kopyala</button><button class="btn" data-a="testNotify">Test bildirimi</button></div>
+          <p class="tiny muted" style="margin-top:8px">Bildirimde sadece “${esc(s.her)} senden bir şey istiyor 💌” yazar; ne istediği uygulamada görünür.</p></section>`;
+      }
     }
-    h += `<section class="card"><h2>🟢 WhatsApp</h2>${`<div class="seg">${[['app', 'Uygulamayı aç'], ['web', 'wa.me linki']].map(([id, t]) => `<button class="${s.wa === id ? 'on' : ''}" data-a="setWa" data-v="${id}">${t}</button>`).join('')}</div>`}
-      <p class="tiny muted" style="margin-top:8px">iPhone’da mesaj WhatsApp’ta açılmazsa “wa.me linki”ni seç.</p></section>`;
     h += `<section class="card"><h2>💾 Yedek</h2><p class="small muted">Uygulamayı Ana Ekran’a eklediysen veriler kalıcıdır. Yine de arada bir yedek al.</p>
       <div class="btn-row" style="margin-top:12px"><button class="btn" data-a="export">Yedeği indir</button><label class="btn" style="position:relative">Yedeği yükle<input type="file" accept="application/json,.json" data-in="import" style="position:absolute;inset:0;opacity:0"></label></div></section>`;
-    h += `<section class="card"><h2>🔒 Gizlilik</h2><p class="small">Hesap yok, reklam yok, sunucu yok. Tüm kayıtlar sadece bu telefonda durur. ${esc(s.him)} sadece ${esc(s.her)} WhatsApp’tan güncelleme gönderdiğinde (notlar hariç) ağrı, ruh hali ve döngü bilgilerini görür.</p></section>`;
+    h += `<section class="card"><h2>🔒 Gizlilik</h2><p class="small">Hesap yok, reklam yok. ${ek(s.her, 'in')} kayıtları telefonunda şifrelenir ve sadece ${ek(s.him, 'in')} telefonu çözebilir; Google’ın sunucusu yalnızca şifreli veriyi taşır. Notlar hiç gönderilmez.</p></section>`;
     h += `<section class="card"><h2>ℹ️ Hakkında</h2><p class="small muted">Tahminler: son 6 döngünün ortalaması, yumurtlama = sonraki reglden ${s.luteal} gün önce, doğurgan pencere = yumurtlamadan 5 gün önce ile 1 gün sonrası (Wilcox, NEJM 1995 / BMJ 2000), düzensiz döngülerde Ogino-Knaus tamponu. Bu uygulama tıbbi cihaz ya da doğum kontrol yöntemi değildir.</p></section>`;
     h += `<section class="card"><div class="stack"><button class="btn block" data-a="switchRole">Rolü değiştir (şu an: ${esc(merve ? s.her : s.him)})</button><button class="btn danger block" data-a="wipe">Tüm verileri sil</button></div></section>`;
     return h + '</main>';
@@ -868,12 +906,11 @@
           <label class="f">Döngün kaç gün? <span class="tiny">(bilmiyorsan 28 kalsın)</span>${stepper('ob.c', v.c || 28, 20, 45, 'gün')}</label>
           <details><summary class="small muted">＋ Önceki regl tarihlerin (isteğe bağlı, tahminleri hemen iyileştirir)</summary><div class="stack" style="margin-top:10px">
             <input class="in" type="date" max="${T}" data-in="ob.p1" value="${v.p1 || ''}"><input class="in" type="date" max="${T}" data-in="ob.p2" value="${v.p2 || ''}"></div></details>
-          <label class="f">${ek(him, 'in')} WhatsApp numarası<input class="in" type="tel" placeholder="05xx xxx xx xx" data-in="ob.phone" value="${esc(v.phone || '')}"></label>
         </div>
         <button class="btn primary block" data-a="obDone" data-v="merve">Başla</button><button class="btn ghost" data-a="obRole" data-v="role">← Geri</button></div>`;
     }
     return `<div class="ob"><div class="logo">🌸💙</div><h1>Döngümüz</h1>
-      <p class="lead">${esc(her)} ve ${esc(him)} için regl takibi.<br>Veriler sadece bu telefonda kalır.</p>
+      <p class="lead">${esc(her)} ve ${esc(him)} için regl takibi.<br>Kayıtlar şifreli, sadece ikinizin telefonunda.</p>
       <button class="role" data-a="obRole" data-v="merve"><span class="e">🌸</span><span><b>Ben ${esc(her)}</b><span class="muted small">Döngümü takip edeceğim</span></span></button>
       <button class="role" data-a="obRole" data-v="murat"><span class="e">💙</span><span><b>Ben ${esc(him)}</b></span></button>
       <details class="card"><summary class="small muted">İsimleri değiştir</summary><div class="btn-row" style="margin-top:10px">
@@ -899,25 +936,13 @@
       b = `<h2>Geçmiş regl ekle</h2><div class="stack"><label class="f">Başlangıç<input class="in" type="date" max="${T}" data-in="sh.date" value="${v.date || ''}"></label>
         <label class="f">Kaç gün sürdü?${stepper('sh.len', v.len || S.set.period, 1, 12, 'gün')}</label>
         <button class="btn primary block" data-a="confirmAdd">Ekle</button></div>`;
-    } else if (sh.type === 'notify') {
-      b = `<h2>${sh.ended ? '✓ Regl bitti olarak kaydedildi' : '🩸 Regl başladı olarak kaydedildi'}</h2><p class="small muted">${ek(S.set.him, 'e')} haber verelim mi? Onun uygulaması da güncellenir.</p>
-        <button class="btn wa block" style="margin-top:12px" data-a="sendNotice" data-v="${sh.ended ? 'end' : 'start'}">WhatsApp’tan haber ver</button>
-        <button class="btn ghost block" data-a="closeSheet">Şimdi değil</button>`;
-    } else if (sh.type === 'paste') {
-      b = `<h2>Mesajı yapıştır</h2><p class="small muted">WhatsApp’ta ${ek(S.set.her, 'in')} mesajına basılı tut → Kopyala. Sonra aşağıdaki kutuya yapıştır.</p>
-        <textarea class="in" style="margin-top:10px" data-in="sh.text" placeholder="Mesajı buraya yapıştır">${esc(v.text || '')}</textarea>
-        <button class="btn primary block" style="margin-top:12px" data-a="confirmPaste">İçe aktar</button>`;
-    } else if (sh.type === 'linkOpened') {
-      b = `<h2>✓ Güncelleme alındı</h2><p class="small">Bu güncelleme tarayıcıya kaydedildi.</p>
-        <p class="small muted" style="margin-top:8px">Uygulamayı <b>Ana Ekran’daki simgeden</b> kullanıyorsan oranın verisi ayrıdır: aşağıdaki düğmeyle linki kopyala, uygulamayı aç ve “📋 Yapıştır”a bas.</p>
-        <button class="btn primary block" style="margin-top:12px" data-a="copyLink">Linki kopyala</button><button class="btn ghost block" data-a="closeSheet">Tamam</button>`;
     }
     return `<div class="backdrop" data-a="closeSheet"></div><div class="sheet" role="dialog"><div class="grab"></div>${b}</div>`;
   }
 
   // ---------------------------------------------------------------- render
   const VIEWS_HER = { home: vMerveHome, cal: vCal, log: vLog, ask: vAsk, stats: vStats, settings: vSettings, guide: vGuide };
-  const VIEWS_HIM = { home: vHisHome, cal: vCal, guide: vGuide, settings: vSettings };
+  const VIEWS_HIM = { home: vHisHome, inbox: vInbox, cal: vCal, guide: vGuide, settings: vSettings };
   function render() {
     document.documentElement.dataset.role = S.role || 'merve';
     const app = document.getElementById('app');
@@ -925,6 +950,7 @@
     else {
       const views = S.role === 'merve' ? VIEWS_HER : VIEWS_HIM;
       if (!views[U.tab]) U.tab = 'home';
+      if (U.tab === 'inbox' && S.inbox.length && S.inbox[S.inbox.length - 1].st > S.inboxSeen) { S.inboxSeen = S.inbox[S.inbox.length - 1].st; persist(); }
       const bar = sendBar();
       app.innerHTML = views[U.tab]() + (bar ? '<div style="height:76px"></div>' + bar : '') + tabbar();
     }
@@ -934,7 +960,7 @@
     if (tab !== U.tab) { U.prevTab = U.tab; U.tab = tab; }
     U.sheet = null;
     render();
-    window.scrollTo(0, 0);
+    window.scrollTo(0, tab === 'inbox' ? document.body.scrollHeight : 0);
   }
   function openSheet(sheet) { U.sheet = sheet; U.shv = {}; render(); }
   let toastTimer;
@@ -957,25 +983,7 @@
     const [root, key] = path.split('.');
     return root === 'set' ? S.set[key] : root === 'ob' ? U.obv[key] : U.shv[key];
   }
-  function ensurePartner() {
-    if (!S.partner) S.partner = { periods: [], cycle: 28, period: 5, luteal: 14, days: {}, cs: {}, t: 0 };
-  }
-
   // ---------------------------------------------------------------- eylemler
-  async function doPaste() {
-    try {
-      const t = await navigator.clipboard.readText();
-      const m = t.match(/#s=([A-Za-z0-9_-]+)/);
-      if (m) { await importCode(m[1]); return; }
-      toast('Panoda güncelleme linki bulunamadı');
-    } catch (e) { /* izin yok: elle yapıştırma */ }
-    openSheet({ type: 'paste' });
-  }
-  function sendRequest(items, when, note) {
-    sendWA(S.set.himPhone, requestText(items, when, note));
-    logRequest(items, when, note);
-  }
-
   const A = {
     tab: el => go(el.dataset.v),
     back: () => go(U.prevTab && U.prevTab !== U.tab ? U.prevTab : 'home'),
@@ -983,10 +991,10 @@
     closeSheet: () => { U.sheet = null; render(); },
     day: el => openSheet({ type: 'day', date: el.dataset.d }),
 
-    startPeriod: el => { if (startPeriod(el.dataset.d)) { U.sheet = { type: 'notify' }; render(); } },
-    confirmStart: () => { if (startPeriod(U.shv.date || today())) { U.sheet = { type: 'notify' }; render(); } },
-    endPeriod: el => { if (endPeriod(el.dataset.d)) { U.sheet = { type: 'notify', ended: true }; render(); } },
-    confirmEnd: () => { if (endPeriod(U.shv.date || today())) { U.sheet = { type: 'notify', ended: true }; render(); } },
+    startPeriod: el => { if (startPeriod(el.dataset.d)) { U.sheet = null; render(); toast('Regl başladı olarak kaydedildi'); } },
+    confirmStart: () => { if (startPeriod(U.shv.date || today())) { U.sheet = null; render(); toast('Regl başladı olarak kaydedildi'); } },
+    endPeriod: el => { if (endPeriod(el.dataset.d)) { U.sheet = null; render(); toast('Regl bitti olarak kaydedildi'); } },
+    confirmEnd: () => { if (endPeriod(U.shv.date || today())) { U.sheet = null; render(); toast('Regl bitti olarak kaydedildi'); } },
     removeDay: el => { removeDay(el.dataset.d); render(); },
     extendDay: el => { const p = extendable(el.dataset.d); if (p) { p.e = el.dataset.d; save(); render(); } },
     delPeriod: el => { if (confirm('Bu regl kaydı silinsin mi?')) { S.periods.splice(Number(el.dataset.i), 1); save(); render(); } },
@@ -997,13 +1005,6 @@
       S.periods.push({ s: d, e: addDays(d, len - 1) });
       sortPeriods(); save(); U.sheet = null; render(); toast('Eklendi');
     },
-    sendNotice: el => {
-      const st = statusOf(mE(), today());
-      const head = el.dataset.v === 'end' ? '✅ Reglim bitti.' : '🩸 Reglim başladı. Bu birkaç gün bana iyi bak 💛';
-      sendWA(S.set.himPhone, `${head}\n${st ? `📅 ${phaseLine(st)}\n` : ''}\n🔄 ${syncLink()}`);
-      U.sheet = null; render();
-    },
-
     logDate: el => { U.logDate = el.dataset.d; go('log'); },
     logNav: el => { const T = today(), d = addDays(U.logDate || T, Number(el.dataset.n)); if (d <= T) { U.logDate = d; render(); } },
     pain: el => {
@@ -1040,41 +1041,24 @@
       R.items = quickOn(q) ? R.items.filter(id => !q.items.includes(id)) : [...R.items, ...q.items.filter(id => !R.items.includes(id))];
       render();
     },
-    reqClear: () => { U.req = { items: [], when: '', note: '' }; render(); },
+    reqClear: () => { U.req = { items: [], when: '' }; render(); },
     reqToggle: el => { const R = U.req, id = el.dataset.id; R.items = R.items.includes(id) ? R.items.filter(x => x !== id) : [...R.items, id]; render(); },
     reqWhen: el => { U.req.when = U.req.when === el.dataset.v ? '' : el.dataset.v; render(); },
-    sendReq: () => { const R = U.req; sendRequest(R.items, R.when, R.note.trim()); U.req = { items: [], when: '', note: '' }; render(); },
-    resendReq: el => { const r = S.reqs[Number(el.dataset.i)]; sendRequest(r.items, r.when, r.note); },
-    sendGuide: () => {
-      const st = statusOf(mE(), today()), ph = C.PHASES[st.phase], seed = dnum(today());
-      const text = [`💙 ${S.set.him}, şu an ${ph.emoji} ${ph.name} fazındayım (${phaseLine(st)}).`, '', ph.murat.summary, '',
-        'Bu günlerde:', ...pick(ph.murat.do, 4, seed).map(x => `✅ ${x}`), ...pick(ph.murat.dont, 2, seed).map(x => `🚫 ${x}`), '', `🔄 ${syncLink()}`].join('\n');
-      sendWA(S.set.himPhone, text);
+    sendReq: () => { const R = U.req; U.req = { items: [], when: '' }; sendRequest(R.items, R.when); },
+    resendReq: el => { const r = S.reqs[Number(el.dataset.i)]; sendRequest(r.items, r.when); },
+    connect: () => connect(U.obv.code),
+    refresh: () => pullNow(true),
+    unpair: () => {
+      if (!confirm('Bağlantı kaldırılsın mı? Tekrar bağlanmak için kodu yeniden girmen gerekir.')) return;
+      S.pair = null; S.partner = null; S.inbox = []; S.inboxSeen = 0; persist(); go('home');
     },
-    sendSync: () => {
-      const st = statusOf(mE(), today());
-      sendWA(S.set.himPhone, `🔄 Döngü güncellemem\n${st ? `📅 ${phaseLine(st)}\n` : ''}\n${syncLink()}\n\n(Linke dokun ya da bu mesajı kopyalayıp uygulamada “Yapıştır”a bas.)`);
+    newCode: () => {
+      if (S.pair && S.pair.linked && !confirm(`Yeni kod oluşursa ${S.set.him} yeni kodu girene kadar güncellemeleri göremez. Devam?`)) return;
+      S.pair = null; ensurePair(); render();
     },
-    hisQuick: el => sendWA(S.set.herPhone, C.HIS_QUICK[Number(el.dataset.i)]),
-    herStartToday: () => {
-      ensurePartner();
-      const T = today(), E = pE();
-      const inf = E.ps.length ? dayInfo(E, T, T) : null;
-      if (inf && inf.period && !inf.pPred) return toast('Zaten regl olarak görünüyor');
-      S.partner.periods.push({ s: T, e: '' });
-      save(); render(); toast('İşaretlendi');
-    },
-
-    paste: () => doPaste(),
-    confirmPaste: async () => {
-      const m = String(U.shv.text || '').match(/#s=([A-Za-z0-9_-]+)/);
-      if (!m) return toast('Mesajda güncelleme linki yok');
-      U.sheet = null;
-      await importCode(m[1]);
-    },
-    copyLink: async () => {
-      try { await navigator.clipboard.writeText(U.sheet.link); toast('Kopyalandı. Şimdi uygulamayı aç → Yapıştır'); } catch (e) { toast('Kopyalanamadı'); }
-    },
+    copyTopic: async () => { try { await navigator.clipboard.writeText(S.pair.topic); toast('Kopyalandı'); } catch (e) { toast('Kopyalanamadı, elle yaz'); } },
+    testNotify: () => SY.notify(S.pair.code, 'Döngümüz', 'Test bildirimi ✓ Kurulum tamam.').then(() => toast('Gönderildi, telefonuna baktın mı?'), () => toast('İnternet bağlantısı yok')),
+    hideNtfy: () => { S.set.ntfyHide = true; persist(); render(); },
 
     calNav: el => { const [y, m] = U.cal.split('-').map(Number); const d = new Date(y, m - 1 + Number(el.dataset.n), 1); U.cal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; render(); },
     calToday: () => { U.cal = null; render(); },
@@ -1086,9 +1070,6 @@
       if (k.startsWith('set.')) save();
       render();
     },
-    tog: el => { S.set[el.dataset.k] = !S.set[el.dataset.k]; save(); render(); },
-    setWa: el => { S.set.wa = el.dataset.v; save(); render(); },
-
     obRole: el => {
       if (el.dataset.v === 'murat') { S.role = 'murat'; U.tab = 'home'; save(); render(); window.scrollTo(0, 0); return; } // Murat bir şey girmez
       U.ob = el.dataset.v; U.obv = {}; render(); window.scrollTo(0, 0);
@@ -1098,11 +1079,11 @@
       if (!v.last) return toast('Son regl tarihini seç');
       const P = v.p || 5;
       S.set.period = P; S.set.cycle = v.c || 28;
-      if (v.phone) S.set.himPhone = v.phone;
       S.periods = [...new Set([v.p1, v.p2].filter(d => d && d < v.last))].map(s => ({ s, e: addDays(s, P - 1) }));
       S.periods.push({ s: v.last, e: diff(v.last, T) >= P ? addDays(v.last, P - 1) : '' });
       sortPeriods();
       S.role = 'merve';
+      ensurePair();
       U.tab = 'home';
       save(); render(); window.scrollTo(0, 0);
     },
@@ -1143,11 +1124,6 @@
       const d = U.logDate || today();
       dayLog(d).note = el.value;
       cleanDay(d); saveSoon();
-    } else if (k === 'reqNote') {
-      U.req.note = el.value;
-      const pv = document.getElementById('req-preview');
-      if (pv) pv.textContent = requestText(U.req.items, U.req.when, U.req.note, true);
-      document.querySelectorAll('[data-a="sendReq"]').forEach(btn => { btn.disabled = !(U.req.items.length || U.req.note.trim()); });
     } else if (k.startsWith('ob.') || k.startsWith('sh.')) setPath(k, el.value);
   });
   document.addEventListener('change', e => {
@@ -1185,21 +1161,16 @@
     const T = today(), pLen = mE().pLen;
     S.periods.forEach(p => { if (!p.e && diff(p.s, T) > 10) p.e = addDays(p.s, pLen - 1); });
   }
-  async function importFromHash() {
-    const m = location.hash.match(/#s=([A-Za-z0-9_-]+)/);
-    if (!m) return;
-    history.replaceState(null, '', location.pathname + location.search);
-    const ok = await importCode(m[1]);
-    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-    if (ok && !standalone) { U.sheet = { type: 'linkOpened', link: `${appUrl()}#s=${m[1]}` }; render(); }
-  }
   async function init() {
     housekeeping();
+    ensurePair();
+    if (S.role === 'murat' && S.pair && !S.pair.topic) { S.pair.topic = await SY.topic(S.pair.code); persist(); }
     render();
-    refreshSync();
-    await importFromHash();
-    window.addEventListener('hashchange', importFromHash);
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !document.activeElement.matches('input,textarea')) render(); });
+    const sync = () => { if (S.role === 'merve') pushNow(); else pullNow(); };
+    sync();
+    window.addEventListener('online', sync);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { softRender(); sync(); } });
+    setInterval(() => { if (document.visibilityState === 'visible' && S.role === 'murat') pullNow(); }, 30000);
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   init();

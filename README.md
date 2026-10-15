@@ -7,16 +7,18 @@ Merve ve Murat için regl takip uygulaması. iPhone'da Safari'den **Ana Ekrana E
 1. Safari'de uygulamanın linkini aç.
 2. Alttaki **Paylaş** düğmesi → **Ana Ekrana Ekle** → **Ekle**.
 3. Ana ekrandaki "Döngümüz" simgesinden aç.
-   - Merve: **Ben Merve** → son regl tarihi, süre, Murat'ın numarası.
-   - Murat: **Ben Murat** → Merve'nin gönderdiği güncelleme mesajını **📋 Yapıştır** ile al.
+   - Merve: **Ben Merve** → son regl tarihi ve süre. Ana sayfada 10 karakterlik bir bağlantı kodu çıkar.
+   - Murat: **Ben Murat** → o kodu yazar → **Bağlan**. Murat hiçbir tarih girmez.
+4. (İsteğe bağlı) Murat App Store'dan **ntfy**'ı kurar ve Ayarlar'daki konu adına abone olur: Merve istek gönderince bildirim düşer.
 
 Uygulamayı mutlaka Ana Ekran'dan kullanın: Safari sekmesinde tutulan veriler iOS tarafından bir süre kullanılmayınca silinebilir, Ana Ekran uygulamasındakiler kalıcıdır.
 
 ## Nasıl çalışır
 
-- **Gizlilik:** Hesap, sunucu, reklam yok. Kayıtlar sadece telefonda (`localStorage`).
-- **Merve → Murat eşitleme:** Merve'nin her WhatsApp mesajının sonunda sıkıştırılmış bir güncelleme linki olur (döngü tarihleri + son 7 günün ağrı/ruh hali kayıtları; notlar gönderilmez). Murat mesajı kopyalayıp uygulamada **Yapıştır**'a basar ya da linke dokunur.
-- **Murat'tan iste:** İstenen kadar istek seçilir, alttaki **Gönder** çubuğu hepsini tek WhatsApp mesajında açar (istekler + bugünkü ağrılar + döngü günü).
+- **Merve → Murat bağlantısı:** Merve'nin döngü tarihleri ve son 7 günün ağrı/belirti/ruh hali kayıtları her değişiklikte **telefonda AES-256 ile şifrelenip** Firebase Firestore'a (proje `dongumuz`) yazılır; anahtar bağlantı kodundan türetilir, sunucu içeriği göremez. Notlar hiç gönderilmez. Murat'ın uygulaması açıkken her 30 saniyede bir çeker.
+- **Murat'tan iste:** Merve istekleri seçip **Gönder**'e basar; Murat'ın uygulamasında **Merve'den** sekmesine sohbet balonu olarak düşer. İki taraf da serbest yazı yazamaz. ntfy bildirimi sadece "Merve senden bir şey istiyor 💌" der.
+- **Merve bugün:** Merve'nin günlük işaretleri mesaj olarak gelmez; Murat'ın ana ekranındaki kartta hep güncel durur.
+- **Kod dosyaları:** `sync.js` (şifreleme + Firestore REST + ntfy), `config.js` (Firebase web ayarı, gizli değil), `firestore.rules` (sadece bilinen 64 karakterlik eşleşme yolları, silme yok).
 - **Tahmin:** son 6 döngünün ortalaması; yumurtlama = sonraki reglden 14 gün önce (ayarlanabilir); doğurgan pencere = yumurtlamadan 5 gün önce → 1 gün sonra; düzensiz döngüde Ogino-Knaus tamponu; pozitif ovülasyon testi ve "yumurta akı" akıntı kaydı tahmini günceller.
 - **Doğum kontrol yöntemi değildir.**
 

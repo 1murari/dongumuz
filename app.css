@@ -267,6 +267,30 @@ textarea.in { min-height: 84px; resize: vertical; }
 .sendbar .e { font-size: 15px; letter-spacing: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sendbar .btn.wa { padding: 8px 18px; }
 
+/* ---------- bağlantı kodu + mesaj kutusu */
+.code {
+  margin: 12px 0; padding: 14px; border-radius: 14px; background: var(--card); text-align: center;
+  font: 700 28px/1.1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; user-select: all;
+}
+.card.tinted .code { background: var(--card); }
+.code.small-code { font-size: 15px; letter-spacing: .02em; word-break: break-all; background: var(--soft); }
+.code-in { text-align: center; font: 700 22px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; }
+.chat { display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
+.day-sep { align-self: center; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--soft); padding: 4px 12px; border-radius: 999px; margin-top: 6px; }
+.bubble {
+  align-self: flex-start; max-width: 86%; background: var(--card); box-shadow: var(--shadow);
+  border-radius: 18px 18px 18px 6px; padding: 12px 14px; font-size: 15px;
+}
+.card .bubble { box-shadow: none; background: var(--card); max-width: 100%; }
+.bubble .items { display: flex; flex-direction: column; gap: 4px; }
+.bubble .meta { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--r3); color: #fff; font-size: 12px; }
+.tabbar button { position: relative; }
+.tab-badge {
+  position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--r3); color: #fff; font-size: 11px; font-style: normal; font-weight: 700; display: grid; place-items: center;
+}
+
 /* ---------- tab bar */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
