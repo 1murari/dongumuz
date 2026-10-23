@@ -351,35 +351,49 @@
     toast(r.sent ? `${ek(S.set.him, 'e')} gönderildi ✓` : 'İnternet yok; bağlanınca kendiliğinden gönderilecek');
   }
 
-  // ---------------------------------------------------------------- simgeler
+  // ---------------------------------------------------------------- simgeler (çizgi: içerik; dolu: sekme çubuğu, HIG "prefer filled")
   const ICON = {
-    home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
-    cal: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
-    plus: '<circle cx="12" cy="12" r="9.5"/><path d="M12 8v8M8 12h8"/>',
-    heart: '<path d="M12 20s-7.5-4.6-9.3-9.2C1.4 7.4 3.6 4 7 4c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8C19.5 15.4 12 20 12 20z"/>',
-    chart: '<path d="M5 20v-8M11 20V5M17 20v-5M3 20h18"/>',
-    book: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v16H5.5A1.5 1.5 0 0 0 4 20.5zM4 20.5A1.5 1.5 0 0 0 5.5 22H20"/>',
-    sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     left: '<path d="M15 6l-6 6 6 6"/>',
     right: '<path d="M9 6l6 6-6 6"/>',
-    chat: '<path d="M4 5h16v11H9l-5 4z"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
   };
-  const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
+  const FILL = {
+    home: '<path d="M11.2 2.7a1.2 1.2 0 0 1 1.6 0l8.7 7.4c.5.4.2 1.3-.5 1.3H19v8.1A1.5 1.5 0 0 1 17.5 21H15v-5.6a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1V21H6.5A1.5 1.5 0 0 1 5 19.5v-8.1H3c-.7 0-1-.9-.5-1.3z"/>',
+    cal: '<path d="M7 2.4a1 1 0 0 1 1 1V5h8V3.4a1 1 0 1 1 2 0V5h.6A2.4 2.4 0 0 1 21 7.4V9H3V7.4A2.4 2.4 0 0 1 5.4 5H6V3.4a1 1 0 0 1 1-1zM3 10.6h18v8A2.4 2.4 0 0 1 18.6 21H5.4A2.4 2.4 0 0 1 3 18.6z"/>',
+    heart: '<path d="M12 20.6c-.3 0-.6-.1-.8-.3C7.6 17.6 2.5 13.6 2.5 8.8 2.5 6 4.6 3.6 7.4 3.6c1.9 0 3.5 1 4.6 2.6 1.1-1.6 2.7-2.6 4.6-2.6 2.8 0 4.9 2.4 4.9 5.2 0 4.8-5.1 8.8-8.7 11.5-.2.2-.5.3-.8.3z"/>',
+    chart: '<rect x="3.5" y="12" width="4.2" height="9" rx="1.4"/><rect x="9.9" y="3.5" width="4.2" height="17.5" rx="1.4"/><rect x="16.3" y="8" width="4.2" height="13" rx="1.4"/>',
+    book: '<path d="M4 4.9A2.4 2.4 0 0 1 6.4 2.5H19a1 1 0 0 1 1 1V18H6.4a1.25 1.25 0 0 0 0 2.5H20v.5a1 1 0 0 1-1 1H6.4A2.4 2.4 0 0 1 4 19.6z"/>',
+    chat: '<path d="M12 3c5.1 0 9.2 3.5 9.2 7.8S17.1 18.6 12 18.6c-1 0-2-.1-2.9-.4l-3.9 1.9c-.6.3-1.3-.3-1.1-.9l.9-3.1C3.6 14.7 2.8 12.8 2.8 10.8 2.8 6.5 6.9 3 12 3z"/>',
+    gear: '<path fill-rule="evenodd" d="M10.6 2.3h2.8l.5 2.6c.7.2 1.3.5 1.9.9l2.3-1.4 2 2-1.4 2.3c.4.6.7 1.2.9 1.9l2.6.5v2.8l-2.6.5c-.2.7-.5 1.3-.9 1.9l1.4 2.3-2 2-2.3-1.4c-.6.4-1.2.7-1.9.9l-.5 2.6h-2.8l-.5-2.6c-.7-.2-1.3-.5-1.9-.9l-2.3 1.4-2-2 1.4-2.3c-.4-.6-.7-1.2-.9-1.9l-2.6-.5v-2.8l2.6-.5c.2-.7.5-1.3.9-1.9L4 6.4l2-2 2.3 1.4c.6-.4 1.2-.7 1.9-.9zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/>',
+  };
+  const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
+  const svgF = n => `<svg viewBox="0 0 24 24" fill="currentColor">${FILL[n]}</svg>`;
 
   // ---------------------------------------------------------------- ortak parçalar
-  function top(title, sub, right) {
-    const btn = right != null ? right : `<button class="icon-btn" data-a="tab" data-v="settings" aria-label="Ayarlar">${svg('sliders')}</button>`;
-    return `<header class="top"><div class="grow">${sub ? `<div class="sub">${sub}</div>` : ''}<h1>${title}</h1></div>${btn}</header>`;
+  // iOS gezinme çubuğu: solda/sağda cam daire düğmeler, kaydırınca ortada küçük başlık; altında büyük başlık
+  function top(title, sub, right, left) {
+    // Murat'ta Ayarlar zaten sekme; sağ üst dişli sadece Merve'de
+    const r = right != null ? right : S.role === 'merve' ? `<button class="icon-btn glass" data-a="tab" data-v="settings" aria-label="Ayarlar">${svgF('gear')}</button>` : '';
+    return `<div class="navbar"><div class="nav-l">${left || ''}</div><div class="nav-t">${title}</div><div class="nav-r">${r}</div></div>
+      <header class="lt"><h1>${title}</h1>${sub ? `<p class="sub">${sub}</p>` : ''}</header>`;
   }
-  const backBtn = () => `<button class="icon-btn" data-a="back" aria-label="Geri">${svg('back')}</button>`;
+  const backBtn = () => `<button class="icon-btn glass" data-a="back" aria-label="Geri">${svg('back')}</button>`;
+  function tabList() {
+    return S.role === 'merve'
+      ? [['home', 'Bugün', 'home'], ['cal', 'Takvim', 'cal'], ['ask', 'İstek', 'heart'], ['stats', 'Analiz', 'chart']]
+      : [['home', 'Bugün', 'home'], ['inbox', S.set.her, 'chat'], ['cal', 'Takvim', 'cal'], ['guide', 'Rehber', 'book'], ['settings', 'Ayarlar', 'gear']];
+  }
   function tabbar() {
-    const tabs = S.role === 'merve'
-      ? [['home', 'Bugün', 'home'], ['cal', 'Takvim', 'cal'], ['log', 'Kaydet', 'plus'], ['ask', 'İstek', 'heart'], ['stats', 'Analiz', 'chart']]
-      : [['home', 'Bugün', 'home'], ['inbox', S.set.her, 'chat'], ['cal', 'Takvim', 'cal'], ['guide', 'Rehber', 'book'], ['settings', 'Ayarlar', 'sliders']];
+    const tabs = tabList(), i = tabs.findIndex(t => t[0] === U.tab);
     const n = S.role === 'murat' ? unread() : 0;
-    return `<div class="tabbar"><nav>${tabs.map(([id, t, ic]) => `<button class="${U.tab === id ? 'on' : ''}${id === 'log' ? ' plus' : ''}" data-a="tab" data-v="${id}">${svg(ic)}<span>${esc(t)}</span>${id === 'inbox' && n ? `<i class="tab-badge">${n}</i>` : ''}</button>`).join('')}</nav></div>`;
+    let h = `<div class="tabdock"><nav class="tabbar glass" style="--n:${tabs.length}">${i >= 0 ? `<i class="tab-lens" style="--i:${i}"></i>` : ''}`;
+    h += tabs.map(([id, t, ic]) => `<button class="${U.tab === id ? 'on' : ''}" data-a="tab" data-v="${id}" aria-label="${esc(t)}">${svgF(ic)}<span>${esc(t)}</span>${id === 'inbox' && n ? `<i class="tab-badge">${n}</i>` : ''}</button>`).join('');
+    h += '</nav>';
+    // Kaydet: ayrı, renkli cam daire (HIG: birincil eylem renkli)
+    if (S.role === 'merve') h += `<button class="fab glass prominent ${U.tab === 'log' ? 'on' : ''}" data-a="tab" data-v="log" aria-label="Kaydet">${svg('plus')}</button>`;
+    return h + '</div>';
   }
   const li = arr => arr.map(x => `<li>${esc(x)}</li>`).join('');
   const PC = ph => `var(--c-${ph})`;
@@ -390,19 +404,20 @@
     return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
   }
   function ring(st, E) {
-    const len = st.len, total = st.late ? st.cd : len, R = 104, W = 16, gap = 2;
+    const len = st.len, total = st.late ? st.cd : len, R = 104, W = 16;
     const deg = d => (d / total) * 360;
+    const gap = Math.min(5, deg(1) * 0.35), cap = (W / 2 / R) * 180 / Math.PI; // yuvarlak uç payı
     let segs = [[1, E.pLen, 'regl'], [E.pLen + 1, st.O - 3, 'folikuler'], [st.O - 2, st.O + 1, 'yumurtlama'], [st.O + 2, len - 5, 'luteal'], [len - 4, len, 'pms'], [len + 1, total, 'gecikme']];
     let prev = 0;
     segs = segs.map(([a, b, ph]) => { a = Math.max(a, prev + 1); b = Math.min(b, total); prev = Math.max(prev, b); return [a, b, ph]; }).filter(([a, b]) => b >= a);
     let out = '';
     for (const [a, b, ph] of segs) {
-      const a0 = deg(a - 1) + gap / 2;
-      out += `<path d="${arc(120, 120, R, a0, deg(b) - gap / 2)}" stroke="${PC(ph)}" stroke-opacity=".22" stroke-width="${W}" fill="none"/>`;
-      if (a <= st.cd) out += `<path d="${arc(120, 120, R, a0, deg(Math.min(b, st.cd)) - gap / 2)}" stroke="${PC(ph)}" stroke-width="${W}" fill="none"/>`;
+      const a0 = deg(a - 1) + gap / 2 + cap, end = x => Math.max(a0 + .1, deg(x) - gap / 2 - cap);
+      out += `<path d="${arc(120, 120, R, a0, end(b))}" stroke="${PC(ph)}" stroke-opacity=".2" stroke-width="${W}" fill="none"/>`;
+      if (a <= st.cd) out += `<path d="${arc(120, 120, R, a0, end(Math.min(b, st.cd)))}" stroke="${PC(ph)}" stroke-width="${W}" fill="none"/>`;
     }
     const t = ((deg(st.cd - 0.5) - 90) * Math.PI) / 180;
-    out += `<circle cx="${(120 + R * Math.cos(t)).toFixed(2)}" cy="${(120 + R * Math.sin(t)).toFixed(2)}" r="11" fill="var(--card)" stroke="var(--ink)" stroke-width="3"/>`;
+    out += `<circle cx="${(120 + R * Math.cos(t)).toFixed(2)}" cy="${(120 + R * Math.sin(t)).toFixed(2)}" r="13" fill="#fff" stroke="var(--card)" stroke-width="3" style="filter:drop-shadow(0 2px 4px rgb(0 0 0 / .25))"/>`;
     return `<svg viewBox="0 0 240 240" aria-hidden="true">${out}</svg>`;
   }
 
@@ -499,8 +514,8 @@
     const n = U.req.items.length;
     if (S.role !== 'merve' || !n || !['home', 'ask'].includes(U.tab)) return '';
     const emojis = U.req.items.map(id => (reqItem(id) || {}).e).join(' ');
-    return `<div class="sendbar"><div class="grow"><b>Seçilenler</b><div class="e">${emojis}</div></div>
-      <button class="btn sm" data-a="reqClear">Temizle</button><button class="btn wa sm" data-a="sendReq">Gönder</button></div>`;
+    return `<div class="sendbar glass"><div class="grow"><b>Seçilenler</b><div class="e">${emojis}</div></div>
+      <button class="btn sm" data-a="reqClear">Temizle</button><button class="btn primary sm" data-a="sendReq">Gönder</button></div>`;
   }
 
   // ---------------------------------------------------------------- kayıt parçaları
@@ -783,7 +798,7 @@
 
   function vInbox() {
     const her = S.set.her;
-    let h = top(`${ek(her, 'den')}`, 'Sadece istekler · buradan yazılamaz', `<button class="icon-btn" data-a="refresh" aria-label="Yenile">${svg('refresh')}</button>`) + '<main>';
+    let h = top(`${ek(her, 'den')}`, 'Sadece istekler · buradan yazılamaz', `<button class="icon-btn glass" data-a="refresh" aria-label="Yenile">${svg('refresh')}</button>`) + '<main>';
     if (!S.pair) return h + connectCard() + '</main>';
     if (!S.inbox.length) return h + `<section class="card center"><div style="font-size:40px">💌</div><p class="small muted" style="margin-top:8px">Henüz istek yok. ${esc(her)} “${ek(S.set.him, 'den')} iste” ekranından bir şey gönderince burada görünecek.</p></section></main>`;
     let day = '', out = '';
@@ -798,7 +813,7 @@
 
   function vGuide() {
     const T = today(), E = curE(), st = E && E.ps.length ? statusOf(E, T) : null;
-    let h = top('Rehber', S.role === 'merve' ? `${ek(S.set.him, 'in')} gördüğü rehber` : `${ek(S.set.her, 'in')} döngüsü ve senin rolün`, S.role === 'merve' ? backBtn() : '') + '<main>';
+    let h = top('Rehber', S.role === 'merve' ? `${ek(S.set.him, 'in')} gördüğü rehber` : `${ek(S.set.her, 'in')} döngüsü ve senin rolün`, '', S.role === 'merve' ? backBtn() : '') + '<main>';
     h += `<section class="card">${['regl', 'folikuler', 'yumurtlama', 'luteal', 'pms', 'gecikme'].map(k => {
       const ph = C.PHASES[k], m = ph.murat;
       return `<details class="acc" ${st && st.phase === k ? 'open' : ''}><summary><span class="pill"><i class="dot" style="background:${PC(k)}"></i>${ph.emoji} ${ph.name}</span>${st && st.phase === k ? '<span class="tiny muted">şu an</span>' : ''}</summary><div class="body">
@@ -845,7 +860,7 @@
       <div class="center"><b>${MONTHS[m - 1]} ${y}</b>${U.cal !== T.slice(0, 7) ? `<div><button class="btn ghost" style="padding:0" data-a="calToday">Bugüne dön</button></div>` : ''}</div>
       <button class="icon-btn" data-a="calNav" data-n="1" aria-label="Sonraki ay">${svg('right')}</button></div>
       <div class="cal-grid">${grid}</div>
-      <div class="legend"><span><i style="background:var(--c-regl)"></i>Regl</span><span><i style="border:2px dashed var(--c-regl)"></i>Tahmini regl</span>
+      <div class="legend"><span><i style="background:var(--c-regl)"></i>Regl</span><span><i style="box-shadow:inset 0 0 0 2px var(--c-regl)"></i>Tahmini regl</span>
       <span><i style="background:var(--c-fertile-soft);border:1px solid var(--c-yumurtlama)"></i>Doğurgan</span><span><i style="background:var(--c-yumurtlama)"></i>Yumurtlama</span><span>• kayıt var</span></div>
       <p class="tiny muted" style="margin-top:8px">Bir güne dokun: ${S.role === 'merve' ? 'kayıt ekle, regl başlangıcını/bitişini düzelt.' : 'o günün bilgisi.'}</p></section>`;
     return h + '</main>';
@@ -857,9 +872,13 @@
   }
   function vSettings() {
     const s = S.set, merve = S.role === 'merve';
-    let h = top('Ayarlar', '', merve ? backBtn() : '') + '<main>';
+    let h = top('Ayarlar', '', '', merve ? backBtn() : '') + '<main>';
     h += `<section class="card"><h2>👥 Kişiler</h2>
       <div class="btn-row"><label class="f">Takip eden<input class="in" data-in="set.her" value="${esc(s.her)}"></label><label class="f">Partner<input class="in" data-in="set.him" value="${esc(s.him)}"></label></div></section>`;
+    const g = s.glass == null ? 50 : s.glass;
+    h += `<section class="card"><h2>✨ Görünüm</h2><p class="small muted">Liquid Glass şeffaflığı (iOS 27’deki gibi). Alttaki sekme çubuğuna bakarak ayarla.</p>
+      <input class="slider" type="range" min="0" max="100" step="1" value="${g}" style="--val:${g}%" data-in="glass" aria-label="Cam şeffaflığı">
+      <div class="slider-labels"><span>Şeffaf</span><span>Buzlu</span></div></section>`;
     if (merve) {
       h += `<section class="card"><h2>🔗 ${ek(s.him, 'le')} bağlantı</h2>
         <p class="small">${S.pair && S.pair.linked ? `✓ ${esc(s.him)} bağlı.` : `${esc(s.him)} henüz bağlanmadı. Kendi uygulamasında <b>Ben ${esc(s.him)}</b> deyip bu kodu girsin:`}</p>
@@ -943,8 +962,18 @@
   // ---------------------------------------------------------------- render
   const VIEWS_HER = { home: vMerveHome, cal: vCal, log: vLog, ask: vAsk, stats: vStats, settings: vSettings, guide: vGuide };
   const VIEWS_HIM = { home: vHisHome, inbox: vInbox, cal: vCal, guide: vGuide, settings: vSettings };
+  // iOS 27 cam şeffaflığı: 0 = en şeffaf, 100 = en buzlu
+  function applyLook() {
+    const g = S.set.glass == null ? 50 : S.set.glass;
+    document.documentElement.style.setProperty('--ga', (0.24 + g / 100 * 0.6).toFixed(3));
+  }
+  let lensFrom = -1;
   function render() {
-    document.documentElement.dataset.role = S.role || 'merve';
+    const root = document.documentElement;
+    root.dataset.role = S.role || 'merve';
+    const E = S.role ? curE() : null, st = E && E.ps.length ? statusOf(E, today()) : null;
+    if (st) root.dataset.phase = st.phase; else delete root.dataset.phase;
+    applyLook();
     const app = document.getElementById('app');
     if (!S.role) app.innerHTML = vOnboard();
     else {
@@ -953,9 +982,19 @@
       if (U.tab === 'inbox' && S.inbox.length && S.inbox[S.inbox.length - 1].st > S.inboxSeen) { S.inboxSeen = S.inbox[S.inbox.length - 1].st; persist(); }
       const bar = sendBar();
       app.innerHTML = views[U.tab]() + (bar ? '<div style="height:76px"></div>' + bar : '') + tabbar();
+      // seçili sekme merceği bir öncekinden kayarak gelsin
+      const lens = app.querySelector('.tab-lens'), to = tabList().findIndex(t => t[0] === U.tab);
+      if (lens && lensFrom >= 0 && lensFrom !== to) {
+        lens.style.transition = 'none'; lens.style.setProperty('--i', lensFrom); void lens.offsetWidth;
+        lens.style.transition = ''; lens.style.setProperty('--i', to);
+      }
+      lensFrom = to;
     }
+    onScroll();
     document.getElementById('sheet').innerHTML = sheetHtml();
   }
+  function onScroll() { document.documentElement.classList.toggle('scrolled', window.scrollY > 38); }
+  window.addEventListener('scroll', onScroll, { passive: true });
   function go(tab) {
     if (tab !== U.tab) { U.prevTab = U.tab; U.tab = tab; }
     U.sheet = null;
@@ -1124,6 +1163,10 @@
       const d = U.logDate || today();
       dayLog(d).note = el.value;
       cleanDay(d); saveSoon();
+    } else if (k === 'glass') {
+      S.set.glass = Number(el.value);
+      el.style.setProperty('--val', el.value + '%');
+      applyLook();
     } else if (k.startsWith('ob.') || k.startsWith('sh.')) setPath(k, el.value);
   });
   document.addEventListener('change', e => {
@@ -1133,6 +1176,8 @@
       const val = el.value.trim();
       if ((k === 'set.her' || k === 'set.him') && !val) { render(); return; }
       setPath(k, val); save(); render();
+    } else if (k === 'glass') {
+      persist();
     } else if (k === 'temp') {
       const d = U.logDate || today(), n = parseFloat(el.value.replace(',', '.'));
       dayLog(d).temp = n >= 34 && n <= 40 ? n : '';
