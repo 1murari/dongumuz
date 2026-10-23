@@ -145,6 +145,51 @@ window.CONTENT = {
     { id: '', t: 'Fark etmez' },
   ],
 
+  // Dönem değişimi haberleri: günün ilk açılışında ekranda + sabah 10:00 bildirim.
+  // {her} {him} {fs} {fe} {ovu} {next} uygulamada doldurulur.
+  EVENTS: {
+    regl: {
+      e: '🩸',
+      her: ['Regl başladı', 'Kendine iyi bak; sıcak uygulama ve dinlenme iyi gelir. Bir sonraki tahmin {next}.'],
+      him: ['{her} regl oldu', 'Bu birkaç gün ilgi ve rahatlık günleri: sıcak su torbası, çay, ev işleri sende.'],
+    },
+    regl_tahmin: {
+      e: '🩸',
+      her: ['Regl bugün bekleniyor', 'Başladığında uygulamadan “Regl bugün başladı”ya dokun.'],
+      him: ['{her} için regl bugün bekleniyor', 'Ped, ağrı kesici ve sıcak su torbası hazır olsun.'],
+    },
+    folikuler: {
+      e: '🌱',
+      her: ['Kanama bitti, foliküler dönem', 'Enerjin yükseliyor; güç antrenmanı ve yeni planlar için iyi günler.'],
+      him: ['{her} için regl bitti', 'Enerjisi yükseliyor; birlikte bir plan yapmak için güzel günler.'],
+    },
+    dogurgan: {
+      e: '🌿',
+      her: ['Doğurgan pencere başladı', '{fs} – {fe} arası gebelik riski yüksek. Tahmini yumurtlama {ovu}.'],
+      him: ['Doğurgan pencere başladı', '{fs} – {fe} arası gebelik riski yüksek; korunmaya dikkat.'],
+    },
+    yumurtlama: {
+      e: '✨',
+      her: ['Yumurtlama dönemi', 'Gebelik riski en yüksek günler. Tahmini yumurtlama {ovu}.'],
+      him: ['{her} yumurtlama döneminde', 'En riskli günler, korunmaya çok dikkat. Enerjisi ve özgüveni yüksek olabilir.'],
+    },
+    luteal: {
+      e: '🌙',
+      her: ['Luteal dönem başladı', 'Doğurgan pencere bitti. Enerji biraz düşebilir, iştah artabilir.'],
+      him: ['{her} luteal dönemde', 'Doğurgan pencere bitti. Daha sakin günler; evde huzurlu akşamlar planla.'],
+    },
+    pms: {
+      e: '🌧️',
+      her: ['PMS dönemi başladı', 'Regl {next} civarında. Tuzu ve kafeini azaltmak iyi gelir; kendine nazik ol.'],
+      him: ['{her} PMS döneminde', 'Ekstra sabır, şefkat ve çikolata zamanı. Regl {next} civarında.'],
+    },
+    gecikme: {
+      e: '⏳',
+      her: ['Regl gecikti', 'Başladıysa uygulamadan işaretle. Korunmasız ilişki olduysa test yapmak iyi olur.'],
+      him: ['{her} için regl gecikti', 'Panik yok, yanında ol. Başladıysa {her} uygulamadan işaretleyecek.'],
+    },
+  },
+
   PHASES: {
     regl: {
       name: 'Regl', emoji: '🩸',

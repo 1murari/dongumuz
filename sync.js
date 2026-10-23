@@ -63,6 +63,11 @@ window.DonguSync = (() => {
       const doc = await req('GET', `pairs/${p.id}/data/state`);
       return doc ? open(p, doc.fields) : null;
     },
+    // şifreli yardımcı belgeler: 'sched' (60 günlük haber takvimi), 'subher' / 'subhim' (bildirim aboneliği)
+    async putDoc(code, name, obj) {
+      const p = await pairOf(code);
+      await req('PATCH', `pairs/${p.id}/data/${name}`, { fields: await seal(p, obj) });
+    },
     // Murat bağlandığını bildirir, Merve kontrol eder
     async ack(code) {
       const p = await pairOf(code);

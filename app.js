@@ -287,6 +287,7 @@
     const before = JSON.stringify([S.pair.linked, S.reqs.map(r => r.sent)]);
     try {
       await SY.putState(S.pair.code, statePayload());
+      await SY.putDoc(S.pair.code, 'sched', buildSchedule());
       for (const r of S.reqs.filter(x => !x.sent).reverse()) {
         await SY.putMsg(S.pair.code, { id: r.id, items: r.items, when: r.when, t: r.t });
         r.sent = true;
@@ -313,6 +314,7 @@
       S.pair.pulledAt = Date.now();
       persist();
       softRender();
+      maybeShowNews();
       if (manual) toast('Güncellendi ✓');
     } catch (e) { if (manual) toast('İnternet bağlantısı yok'); }
     pulling = false;
@@ -349,6 +351,105 @@
     clearTimeout(pushTimer);
     await pushNow();
     toast(r.sent ? `${ek(S.set.him, 'e')} gönderildi ✓` : 'İnternet yok; bağlanınca kendiliğinden gönderilecek');
+  }
+
+  // ---------------------------------------------------------------- dönem değişimi haberleri (ekranda + sabah 10:00 bildirim)
+  function eventKeysOn(E, d, T) {
+    const inf = dayInfo(E, d, T), prev = dayInfo(E, addDays(d, -1), T);
+    if (!inf || !prev) return [];
+    const keys = [];
+    if (inf.phase !== prev.phase && inf.phase !== 'gecikme') keys.push(inf.phase === 'regl' && inf.pPred ? 'regl_tahmin' : inf.phase);
+    if (inf.phase === 'gecikme' && inf.lateDays === 2) keys.push('gecikme'); // 1 gün gecikme normal, 2. günde haber ver
+    if (inf.fertile && !prev.fertile && inf.phase !== 'yumurtlama') keys.push('dogurgan');
+    return keys;
+  }
+  function eventText(key, who, E, d, T) {
+    const ev = C.EVENTS[key], inf = dayInfo(E, d, T);
+    const vars = {
+      her: S.set.her, him: S.set.him,
+      fs: fmtS(addDays(inf.start, inf.O - 6)), fe: fmtS(addDays(inf.start, inf.O)),
+      ovu: fmtS(addDays(inf.start, inf.O - 1)), next: fmtS(addDays(inf.start, inf.len)),
+    };
+    const fill = s => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] || '');
+    return { key, e: ev.e, title: fill(ev[who][0]), body: fill(ev[who][1]) };
+  }
+  function newsFor(who, E, d, T) {
+    return eventKeysOn(E, d, T).map(k => eventText(k, who, E, d, T));
+  }
+  function todaysNews() {
+    const T = today(), E = curE();
+    return E && E.ps.length ? newsFor(S.role === 'merve' ? 'her' : 'him', E, T, T) : [];
+  }
+  // Merve'nin telefonu önümüzdeki 60 günün haberlerini hesaplar; sunucu her sabah bugününkini yollar
+  function buildSchedule() {
+    const T = today(), E = mE(), items = [];
+    if (!E.ps.length) return { v: 1, items };
+    const merge = arr => ({ t: arr.map((x, i) => (i ? x.title : `${x.e} ${x.title}`)).join(' · '), b: arr.map(x => x.body).join(' ') });
+    for (let i = 0; i < 60; i++) {
+      const d = addDays(T, i), her = newsFor('her', E, d, T);
+      if (her.length) items.push({ d, her: merge(her), him: merge(newsFor('him', E, d, T)) });
+    }
+    const st = statusOf(E, T);
+    if (st && st.next && !st.late) { // kayıt girilmezse 2. günde "gecikti" haberi
+      const d = addDays(st.next, 2);
+      items.push({ d, her: merge([eventText('gecikme', 'her', E, d, T)]), him: merge([eventText('gecikme', 'him', E, d, T)]) });
+      items.sort((a, b) => (a.d < b.d ? -1 : 1));
+    }
+    return { v: 1, items };
+  }
+  function newsCard(items) {
+    if (!items.length) return '';
+    return `<section class="card tinted"><h2>📣 Bugün</h2><div class="list">${items.map(n => `<div class="li"><span class="ic">${n.e}</span><div class="grow"><div class="t">${esc(n.title)}</div><div class="s">${esc(n.body)}</div></div></div>`).join('')}</div></section>`;
+  }
+  // günün ilk açılışında bir kez sayfa olarak göster
+  function maybeShowNews() {
+    if (!S.role || U.sheet) return;
+    const T = today();
+    if (S.newsSeen === T || !todaysNews().length) return;
+    S.newsSeen = T;
+    persist();
+    U.sheet = { type: 'news' };
+    render();
+  }
+
+  // ---------------------------------------------------------------- iPhone web bildirimi (sabah 10:00)
+  const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const pushState = () => (!pushSupported() ? 'none' : Notification.permission === 'denied' ? 'denied' : Notification.permission === 'granted' && S.set.push ? 'on' : 'off');
+  function keyBytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+  async function saveSubscription(ask) {
+    if (!S.pair) return false;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub && ask) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(window.DONGU_CONFIG.vapidPublic) });
+    if (!sub) return false;
+    if (sub.endpoint !== S.set.pushEndpoint) {
+      await SY.putDoc(S.pair.code, S.role === 'merve' ? 'subher' : 'subhim', { sub: sub.toJSON(), t: Date.now() });
+      S.set.pushEndpoint = sub.endpoint;
+    }
+    S.set.push = true;
+    persist();
+    return true;
+  }
+  async function enablePush() {
+    if (!pushSupported()) { toast(standalone() ? 'Bu cihaz bildirim desteklemiyor' : 'Önce Paylaş → Ana Ekrana Ekle, sonra uygulamayı simgeden aç'); return; }
+    if (!S.pair) { toast(S.role === 'murat' ? `Önce ${ek(S.set.her, 'e')} bağlan` : 'Bağlantı kodu hazırlanıyor, birazdan tekrar dene'); return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Bildirim izni verilmedi'); render(); return; }
+    try { await saveSubscription(true); toast('Bildirimler açıldı ✓'); } catch (e) { toast('Bildirim açılamadı, internet bağlantısını kontrol et'); }
+    render();
+  }
+  function pushCard(inSettings) {
+    const st = pushState();
+    if (!inSettings && (st !== 'off' || S.set.pushHide)) return '';
+    const other = S.role === 'merve' ? S.set.him : S.set.her;
+    const what = `Kanama bitti, doğurgan pencere, yumurtlama, PMS gibi dönem değişimlerinde sabah 10:00’da hem sana hem ${ek(other, 'e')} bildirim gelir.`;
+    let body;
+    if (st === 'on') body = `<p class="small">✓ Açık. ${what}</p><button class="btn block" style="margin-top:12px" data-a="testPush">Test bildirimi</button>`;
+    else if (st === 'denied') body = `<p class="small">Bildirim izni kapalı. iPhone <b>Ayarlar → Bildirimler → Döngümüz</b>’den izin ver.</p>`;
+    else if (st === 'none') body = `<p class="small">${what}</p><p class="small muted" style="margin-top:8px">Bildirim için uygulamayı <b>Paylaş → Ana Ekrana Ekle</b> ile kurup simgeden açmalısın.</p>`;
+    else body = `<p class="small">${what}</p><div class="btn-row" style="margin-top:12px"><button class="btn primary" data-a="enablePush">Bildirimleri aç</button>${inSettings ? '' : '<button class="btn" data-a="hidePush">Sonra</button>'}</div>`;
+    return `<section class="card${inSettings ? '' : ' tinted'}"><h2>🔔 Sabah bildirimleri</h2>${body}</section>`;
   }
 
   // ---------------------------------------------------------------- simgeler (çizgi: içerik; dolu: sekme çubuğu, HIG "prefer filled")
@@ -568,6 +669,8 @@
     }
     const ph = C.PHASES[st.phase], seed = dnum(T), him = S.set.him;
     const L = S.days[T] || {};
+    h += newsCard(todaysNews());
+    h += pushCard(false);
     h += heroCard(st, E, 'merve');
     h += pairCard();
     h += alerts(st, E, S.days, T, 'merve');
@@ -770,6 +873,8 @@
       h += `<section class="card tinted"><h2>💌 ${esc(her)} senden istiyor${n > 1 ? ` <span class="badge">${n}</span>` : ''}</h2>${msgBubble(last)}
         <button class="btn primary block" style="margin-top:12px" data-a="tab" data-v="inbox">Mesajları aç</button></section>`;
     }
+    h += newsCard(todaysNews());
+    h += pushCard(false);
     h += heroCard(st, E, 'murat');
     // Merve'nin bugünkü işaretleri: mesaj değil, hep burada durur
     const L = (P.days || {})[T];
@@ -879,6 +984,7 @@
     h += `<section class="card"><h2>✨ Görünüm</h2><p class="small muted">Liquid Glass şeffaflığı (iOS 27’deki gibi). Alttaki sekme çubuğuna bakarak ayarla.</p>
       <input class="slider" type="range" min="0" max="100" step="1" value="${g}" style="--val:${g}%" data-in="glass" aria-label="Cam şeffaflığı">
       <div class="slider-labels"><span>Şeffaf</span><span>Buzlu</span></div></section>`;
+    h += pushCard(true);
     if (merve) {
       h += `<section class="card"><h2>🔗 ${ek(s.him, 'le')} bağlantı</h2>
         <p class="small">${S.pair && S.pair.linked ? `✓ ${esc(s.him)} bağlı.` : `${esc(s.him)} henüz bağlanmadı. Kendi uygulamasında <b>Ben ${esc(s.him)}</b> deyip bu kodu girsin:`}</p>
@@ -951,6 +1057,13 @@
     } else if (sh.type === 'pickStart' || sh.type === 'pickEnd') {
       b = `<h2>${sh.type === 'pickStart' ? 'Regl hangi gün başladı?' : 'Regl hangi gün bitti?'}</h2><input class="in" type="date" max="${T}" data-in="sh.date" value="${v.date || T}">
         <button class="btn primary block" style="margin-top:12px" data-a="${sh.type === 'pickStart' ? 'confirmStart' : 'confirmEnd'}">Kaydet</button>`;
+    } else if (sh.type === 'news') {
+      const ph = st => C.PHASES[st.phase];
+      const E = curE(), stt = E && E.ps.length ? statusOf(E, T) : null;
+      const tips = stt ? (S.role === 'merve' ? ph(stt).self.slice(0, 2) : pick(ph(stt).murat.do, 2, dnum(T))) : [];
+      b = `<h2>📣 Bugün</h2><div class="list" style="margin-top:6px">${todaysNews().map(n => `<div class="li"><span class="ic">${n.e}</span><div class="grow"><div class="t">${esc(n.title)}</div><div class="s">${esc(n.body)}</div></div></div>`).join('')}</div>
+        ${tips.length ? `<h3 style="color:var(--label2);font-size:15px;margin:14px 0 8px">${S.role === 'merve' ? 'Kendin için' : 'Bugün senden beklenen'}</h3><ul class="tips">${li(tips)}</ul>` : ''}
+        <button class="btn primary block" style="margin-top:16px" data-a="closeSheet">Tamam</button>`;
     } else if (sh.type === 'addPeriod') {
       b = `<h2>Geçmiş regl ekle</h2><div class="stack"><label class="f">Başlangıç<input class="in" type="date" max="${T}" data-in="sh.date" value="${v.date || ''}"></label>
         <label class="f">Kaç gün sürdü?${stepper('sh.len', v.len || S.set.period, 1, 12, 'gün')}</label>
@@ -1097,6 +1210,11 @@
     },
     copyTopic: async () => { try { await navigator.clipboard.writeText(S.pair.topic); toast('Kopyalandı'); } catch (e) { toast('Kopyalanamadı, elle yaz'); } },
     testNotify: () => SY.notify(S.pair.code, 'Döngümüz', 'Test bildirimi ✓ Kurulum tamam.').then(() => toast('Gönderildi, telefonuna baktın mı?'), () => toast('İnternet bağlantısı yok')),
+    enablePush: () => enablePush(),
+    hidePush: () => { S.set.pushHide = true; persist(); render(); },
+    testPush: async () => {
+      try { const reg = await navigator.serviceWorker.ready; await reg.showNotification('Döngümüz', { body: 'Test bildirimi ✓ Sabah 10:00 bildirimleri böyle görünecek.', icon: 'icons/icon-192.png' }); } catch (e) { toast('Bildirim gösterilemedi'); }
+    },
     hideNtfy: () => { S.set.ntfyHide = true; persist(); render(); },
 
     calNav: el => { const [y, m] = U.cal.split('-').map(Number); const d = new Date(y, m - 1 + Number(el.dataset.n), 1); U.cal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; render(); },
@@ -1213,6 +1331,8 @@
     render();
     const sync = () => { if (S.role === 'merve') pushNow(); else pullNow(); };
     sync();
+    maybeShowNews();
+    if (pushSupported() && Notification.permission === 'granted' && S.set.push) saveSubscription(false).catch(() => {});
     window.addEventListener('online', sync);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { softRender(); sync(); } });
     setInterval(() => { if (document.visibilityState === 'visible' && S.role === 'murat') pullNow(); }, 30000);

@@ -1,0 +1,33 @@
+name: Sabah bildirimi
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 10:00 Türkiye (UTC+3). GitHub bazen birkaç dakika geç çalıştırır.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save --no-audit --no-fund web-push@3.6.7
+      - run: node scripts/daily.mjs
+        env:
+          PAIR_CODE: ${{ secrets.PAIR_CODE }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      # Herkese açık depolarda 60 gün hareket olmazsa GitHub zamanlayıcıyı kapatır; 50 günde bir boş kayıt atar.
+      - name: Zamanlayıcıyı canlı tut
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -gt $(( 50 * 86400 )) ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "zamanlayıcıyı canlı tut"
+            git push
+          fi
