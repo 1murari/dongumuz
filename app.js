@@ -1,6 +1,7 @@
 'use strict';
 (() => {
   const C = window.CONTENT;
+  const NOTIFY = !!window.DONGU_CONFIG.notify; // bildirimler (sabah 10:00 + istek bildirimi) şimdilik kapalı olabilir
   const KEY = 'dongumuz.v1';
 
   // ---------------------------------------------------------------- tarih yardımcıları
@@ -291,7 +292,7 @@
       for (const r of S.reqs.filter(x => !x.sent).reverse()) {
         await SY.putMsg(S.pair.code, { id: r.id, items: r.items, when: r.when, t: r.t });
         r.sent = true;
-        SY.notify(S.pair.code, 'Döngümüz', `${S.set.her} senden bir şey istiyor 💌`).catch(() => {});
+        if (NOTIFY) SY.notify(S.pair.code, 'Döngümüz', `${S.set.her} senden bir şey istiyor 💌`).catch(() => {});
       }
       if (!S.pair.linked && (await SY.isLinked(S.pair.code))) S.pair.linked = Date.now();
     } catch (e) { /* internet yok: sonra tekrar denenir */ }
@@ -440,6 +441,7 @@
     render();
   }
   function pushCard(inSettings) {
+    if (!NOTIFY) return '';
     const st = pushState();
     if (!inSettings && (st !== 'off' || S.set.pushHide)) return '';
     const other = S.role === 'merve' ? S.set.him : S.set.her;
@@ -896,7 +898,7 @@
       <button class="btn ghost" style="margin-top:6px" data-a="tab" data-v="guide">Tüm rehber →</button></section>`;
     h += riskCard(st, E, T);
     h += upcomingCard(st, E, T);
-    if (!S.set.ntfyHide) h += `<section class="card"><h2>🔔 Bildirim al</h2><p class="small muted">${esc(her)} bir şey istediğinde telefonuna bildirim düşsün mü? Ücretsiz ntfy uygulamasıyla 1 dakikada kurulur.</p>
+    if (NOTIFY && !S.set.ntfyHide) h += `<section class="card"><h2>🔔 Bildirim al</h2><p class="small muted">${esc(her)} bir şey istediğinde telefonuna bildirim düşsün mü? Ücretsiz ntfy uygulamasıyla 1 dakikada kurulur.</p>
       <div class="btn-row" style="margin-top:10px"><button class="btn primary" data-a="tab" data-v="settings">Nasıl kurulur?</button><button class="btn" data-a="hideNtfy">Gizle</button></div></section>`;
     return h + '</main>';
   }
@@ -989,7 +991,7 @@
       h += `<section class="card"><h2>🔗 ${ek(s.him, 'le')} bağlantı</h2>
         <p class="small">${S.pair && S.pair.linked ? `✓ ${esc(s.him)} bağlı.` : `${esc(s.him)} henüz bağlanmadı. Kendi uygulamasında <b>Ben ${esc(s.him)}</b> deyip bu kodu girsin:`}</p>
         ${S.pair ? `<div class="code">${SY.showCode(S.pair.code)}</div>` : ''}
-        <p class="tiny muted">Kayıtların şifrelenip ${ek(s.him, 'in')} uygulamasına kendiliğinden gider. İstek gönderdiğinde ${ek(s.him, 'in')} telefonuna bildirim düşer; senin ayrıca bir şey kurmana gerek yok.</p>
+        <p class="tiny muted">Kayıtların şifrelenip ${ek(s.him, 'in')} uygulamasına kendiliğinden gider.${NOTIFY ? ` İstek gönderdiğinde ${ek(s.him, 'in')} telefonuna bildirim düşer; senin ayrıca bir şey kurmana gerek yok.` : ''}</p>
         <button class="btn block" style="margin-top:10px" data-a="newCode">Yeni kod oluştur</button></section>`;
       h += `<section class="card"><h2>🔁 Döngü</h2><p class="small muted">Başlangıç değerleri. Kayıt ekledikçe uygulama senin gerçek ortalamanı öğrenir.</p><div class="stack" style="margin-top:12px">
         <label class="f">Döngü uzunluğu${stepper('set.cycle', s.cycle, 20, 45, 'gün')}</label>
@@ -1001,7 +1003,7 @@
         ? `<section class="card"><h2>🔗 ${ek(s.her, 'le')} bağlantı</h2><p class="small">✓ Bağlı${P && P.t ? ` · son güncelleme ${ago(P.t)}` : ''}</p>
             <div class="btn-row" style="margin-top:10px"><button class="btn" data-a="refresh">Şimdi yenile</button><button class="btn" data-a="unpair">Bağlantıyı kaldır</button></div></section>`
         : connectCard();
-      if (S.pair && S.pair.topic) {
+      if (NOTIFY && S.pair && S.pair.topic) {
         h += `<section class="card"><h2>🔔 Bildirim (ntfy)</h2>
           <ol class="small" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">
             <li>App Store’dan ücretsiz <b>ntfy</b> uygulamasını indir.</li>
@@ -1332,7 +1334,7 @@
     const sync = () => { if (S.role === 'merve') pushNow(); else pullNow(); };
     sync();
     maybeShowNews();
-    if (pushSupported() && Notification.permission === 'granted' && S.set.push) saveSubscription(false).catch(() => {});
+    if (NOTIFY && pushSupported() && Notification.permission === 'granted' && S.set.push) saveSubscription(false).catch(() => {});
     window.addEventListener('online', sync);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { softRender(); sync(); } });
     setInterval(() => { if (document.visibilityState === 'visible' && S.role === 'murat') pullNow(); }, 30000);

@@ -7,6 +7,10 @@ import webpush from 'web-push';
 const cfg = fs.readFileSync(new URL('../config.js', import.meta.url), 'utf8');
 const val = k => (cfg.match(new RegExp(`${k}:\\s*'([^']+)'`)) || [])[1];
 const projectId = val('projectId'), apiKey = val('apiKey'), vapidPublic = val('vapidPublic');
+if (!/notify:\s*true/.test(cfg)) {
+  console.log('Bildirimler config.js içinde kapalı; atlanıyor.');
+  process.exit(0);
+}
 const code = String(process.env.PAIR_CODE || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
 if (code.length !== 10 || !vapidPrivate) {

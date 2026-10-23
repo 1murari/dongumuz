@@ -4,5 +4,6 @@ window.DONGU_CONFIG = {
   projectId: 'dongumuz',
   apiKey: 'AIzaSyAR-lxJD3XM5dK4xiXK9YQPYc2gvKL11eU',
   ntfy: 'https://ntfy.sh',
+  notify: false, // bildirimler şimdilik kapalı; Merve'nin kodu GitHub'a girilince true yapılacak
   vapidPublic: 'BLGBvAIgyU8aGYl7uImtEt5Cvq0tuSwPNneBiedHnMm6iwb6qQGeE9q4EHjb2l_8gFryFFRKrZDtmTNBQLyypoo',
 };
