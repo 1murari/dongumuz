@@ -472,6 +472,7 @@
     chart: '<rect x="3.5" y="12" width="4.2" height="9" rx="1.4"/><rect x="9.9" y="3.5" width="4.2" height="17.5" rx="1.4"/><rect x="16.3" y="8" width="4.2" height="13" rx="1.4"/>',
     book: '<path d="M4 4.9A2.4 2.4 0 0 1 6.4 2.5H19a1 1 0 0 1 1 1V18H6.4a1.25 1.25 0 0 0 0 2.5H20v.5a1 1 0 0 1-1 1H6.4A2.4 2.4 0 0 1 4 19.6z"/>',
     chat: '<path d="M12 3c5.1 0 9.2 3.5 9.2 7.8S17.1 18.6 12 18.6c-1 0-2-.1-2.9-.4l-3.9 1.9c-.6.3-1.3-.3-1.1-.9l.9-3.1C3.6 14.7 2.8 12.8 2.8 10.8 2.8 6.5 6.9 3 12 3z"/>',
+    more: '<circle cx="5.5" cy="12" r="2.1"/><circle cx="12" cy="12" r="2.1"/><circle cx="18.5" cy="12" r="2.1"/>',
     gear: '<path fill-rule="evenodd" d="M10.6 2.3h2.8l.5 2.6c.7.2 1.3.5 1.9.9l2.3-1.4 2 2-1.4 2.3c.4.6.7 1.2.9 1.9l2.6.5v2.8l-2.6.5c-.2.7-.5 1.3-.9 1.9l1.4 2.3-2 2-2.3-1.4c-.6.4-1.2.7-1.9.9l-.5 2.6h-2.8l-.5-2.6c-.7-.2-1.3-.5-1.9-.9l-2.3 1.4-2-2 1.4-2.3c-.4-.6-.7-1.2-.9-1.9l-2.6-.5v-2.8l2.6-.5c.2-.7.5-1.3.9-1.9L4 6.4l2-2 2.3 1.4c.6-.4 1.2-.7 1.9-.9zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/>',
   };
   const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${ICON[n]}</svg>`;
@@ -480,8 +481,8 @@
   // ---------------------------------------------------------------- ortak parçalar
   // iOS gezinme çubuğu: solda/sağda cam daire düğmeler, kaydırınca ortada küçük başlık; altında büyük başlık
   function top(title, sub, right, left) {
-    // Murat'ta Ayarlar zaten sekme; sağ üst dişli sadece Merve'de
-    const r = right != null ? right : S.role === 'merve' ? `<button class="icon-btn glass" data-a="tab" data-v="settings" aria-label="Ayarlar">${svgF('gear')}</button>` : '';
+    // sağ üst: ⋯ menüsü (Ayarlar burada)
+    const r = right != null ? right : `<button class="icon-btn glass" data-a="menu" aria-label="Menü">${svgF('more')}</button>`;
     return `<div class="navbar"><div class="nav-l">${left || ''}</div><div class="nav-t">${title}</div><div class="nav-r">${r}</div></div>
       <header class="lt"><h1>${title}</h1>${sub ? `<p class="sub">${sub}</p>` : ''}</header>`;
   }
@@ -489,7 +490,7 @@
   function tabList() {
     return S.role === 'merve'
       ? [['home', 'Bugün', 'home'], ['cal', 'Takvim', 'cal'], ['ask', 'İstek', 'heart'], ['stats', 'Analiz', 'chart']]
-      : [['home', 'Bugün', 'home'], ['inbox', S.set.her, 'chat'], ['cal', 'Takvim', 'cal'], ['guide', 'Rehber', 'book'], ['settings', 'Ayarlar', 'gear']];
+      : [['home', 'Bugün', 'home'], ['inbox', S.set.her, 'chat'], ['cal', 'Takvim', 'cal'], ['guide', 'Rehber', 'book']];
   }
   function tabbar() {
     const tabs = tabList(), i = tabs.findIndex(t => t[0] === U.tab);
@@ -980,15 +981,25 @@
   function stepper(path, val, min, max, suffix) {
     return `<div class="stepper"><button data-a="step" data-k="${path}" data-n="-1" data-min="${min}" data-max="${max}" aria-label="Azalt">−</button><b>${val} ${suffix}</b><button data-a="step" data-k="${path}" data-n="1" data-min="${min}" data-max="${max}" aria-label="Artır">＋</button></div>`;
   }
+  const PALETTES = [
+    ['sistem', 'Sistem', 'rgb(255 45 85)', 'rgb(0 136 255)'],
+    ['gul', 'Gül', 'rgb(255 45 85)', 'rgb(250 220 230)'],
+    ['okyanus', 'Okyanus', 'rgb(0 136 255)', 'rgb(205 230 250)'],
+    ['lavanta', 'Lavanta', 'rgb(136 84 230)', 'rgb(225 215 250)'],
+    ['doga', 'Doğa', 'rgb(36 160 96)', 'rgb(210 238 220)'],
+    ['gunbatimi', 'Gün Batımı', 'rgb(255 112 67)', 'rgb(252 225 205)'],
+    ['gece', 'Gece', 'rgb(122 132 255)', 'rgb(5 6 18)'],
+  ];
   function vSettings() {
     const s = S.set, merve = S.role === 'merve';
-    let h = top('Ayarlar', '', '', merve ? backBtn() : '') + '<main>';
+    let h = top('Ayarlar', '', '', backBtn()) + '<main>';
     h += `<section class="card"><h2>👥 Kişiler</h2>
       <div class="btn-row"><label class="f">Takip eden<input class="in" data-in="set.her" value="${esc(s.her)}"></label><label class="f">Partner<input class="in" data-in="set.him" value="${esc(s.him)}"></label></div></section>`;
     const g = s.glass == null ? 50 : s.glass;
     h += `<section class="card"><h2>✨ Görünüm</h2>
-      <h3 style="margin-top:0">Tema</h3><div class="seg">${[['auto', 'Otomatik'], ['light', 'Açık'], ['dark', 'Koyu']].map(([id, t]) => `<button class="${(s.theme || 'auto') === id ? 'on' : ''}" data-a="setTheme" data-v="${id}">${t}</button>`).join('')}</div>
-      <p class="tiny muted" style="margin-top:6px">Otomatik: iPhone’un açık/koyu ayarını izler.</p>
+      <h3 style="margin-top:0">Renk teması</h3><div class="palettes">${PALETTES.map(([id, t, a, b]) => `<button class="palette ${(s.palette || 'sistem') === id ? 'on' : ''}" data-a="setPalette" data-v="${id}"><i style="background:linear-gradient(135deg, ${a} 0 50%, ${b} 50% 100%)"></i>${t}</button>`).join('')}</div>
+      <h3>Açık / koyu</h3><div class="seg">${[['auto', 'Otomatik'], ['light', 'Açık'], ['dark', 'Koyu']].map(([id, t]) => `<button class="${(s.theme || 'auto') === id ? 'on' : ''}" data-a="setTheme" data-v="${id}">${t}</button>`).join('')}</div>
+      <p class="tiny muted" style="margin-top:6px">${s.palette === 'gece' ? 'Gece teması her zaman koyudur.' : 'Otomatik: iPhone’un açık/koyu ayarını izler.'}</p>
       <h3>Cam şeffaflığı</h3><p class="small muted">Liquid Glass şeffaflığı (iOS 27’deki gibi). Alttaki sekme çubuğuna bakarak ayarla.</p>
       <input class="slider" type="range" min="0" max="100" step="1" value="${g}" style="--val:${g}%" data-in="glass" aria-label="Cam şeffaflığı">
       <div class="slider-labels"><span>Şeffaf</span><span>Buzlu</span></div></section>`;
@@ -1053,6 +1064,12 @@
   // ---------------------------------------------------------------- alt sayfa (sheet)
   function sheetHtml() {
     const sh = U.sheet, T = today(), v = U.shv;
+    if (U.menu) {
+      const items = S.role === 'merve'
+        ? [['settings', 'Ayarlar', 'gear'], ['guide', `${ek(S.set.him, 'in')} rehberi`, 'book']]
+        : [['settings', 'Ayarlar', 'gear'], ['refresh', 'Şimdi yenile', 'refresh']];
+      return `<div class="menu-bg" data-a="menuClose"></div><div class="menu-pop glass" role="menu">${items.map(([v, t, ic]) => `<button role="menuitem" data-a="menuGo" data-v="${v}">${t}${ic === 'refresh' ? svg(ic) : svgF(ic)}</button>`).join('')}</div>`;
+    }
     if (!sh) return '';
     let b = '';
     if (sh.type === 'day') {
@@ -1087,9 +1104,11 @@
   function applyLook() {
     const g = S.set.glass == null ? 50 : S.set.glass;
     const root = document.documentElement;
-    root.style.setProperty('--ga', (0.24 + g / 100 * 0.6).toFixed(3));
+    root.style.setProperty('--ga', (0.12 + g / 100 * 0.6).toFixed(3));
     // tema: otomatik (iPhone ayarı) / açık / koyu
-    const th = S.set.theme || 'auto';
+    const pal = S.set.palette || 'sistem';
+    if (pal === 'sistem') delete root.dataset.palette; else root.dataset.palette = pal;
+    const th = pal === 'gece' ? 'dark' : S.set.theme || 'auto'; // Gece her zaman koyu
     if (th === 'auto') delete root.dataset.theme; else root.dataset.theme = th;
     const dark = th === 'dark' || (th === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = dark ? '#000000' : '#f2f2f7'; });
@@ -1123,6 +1142,7 @@
   function onScroll() { document.documentElement.classList.toggle('scrolled', window.scrollY > 38); }
   window.addEventListener('scroll', onScroll, { passive: true });
   function go(tab) {
+    U.menu = false;
     if (tab !== U.tab) { U.prevTab = U.tab; U.tab = tab; }
     U.sheet = null;
     render();
@@ -1152,6 +1172,9 @@
   // ---------------------------------------------------------------- eylemler
   const A = {
     tab: el => go(el.dataset.v),
+    menu: () => { U.menu = !U.menu; render(); },
+    menuClose: () => { U.menu = false; render(); },
+    menuGo: el => { U.menu = false; if (el.dataset.v === 'refresh') { render(); pullNow(true); } else go(el.dataset.v); },
     back: () => go(U.prevTab && U.prevTab !== U.tab ? U.prevTab : 'home'),
     sheet: el => openSheet({ type: el.dataset.v }),
     closeSheet: () => { U.sheet = null; render(); },
@@ -1225,6 +1248,7 @@
     copyTopic: async () => { try { await navigator.clipboard.writeText(S.pair.topic); toast('Kopyalandı'); } catch (e) { toast('Kopyalanamadı, elle yaz'); } },
     testNotify: () => SY.notify(S.pair.code, 'Döngümüz', 'Test bildirimi ✓ Kurulum tamam.').then(() => toast('Gönderildi, telefonuna baktın mı?'), () => toast('İnternet bağlantısı yok')),
     enablePush: () => enablePush(),
+    setPalette: el => { S.set.palette = el.dataset.v; persist(); render(); },
     setTheme: el => { S.set.theme = el.dataset.v; persist(); render(); },
     hidePush: () => { S.set.pushHide = true; persist(); render(); },
     testPush: async () => {

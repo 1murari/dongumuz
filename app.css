@@ -124,6 +124,36 @@
   }
 }
 
+/* ---------------------------------------------------------------- hazır renk temaları (Ayarlar > Görünüm)
+   Sistem: varsayılan (Merve pembe, Murat mavi). Diğerleri vurgu rengini ve arka plan tonunu değiştirir. */
+:root[data-palette="gul"] { --accent: var(--pink); --bg: rgb(250 239 243); }
+:root[data-palette="okyanus"] { --accent: var(--blue); --bg: rgb(233 243 251); }
+:root[data-palette="lavanta"] { --accent: rgb(136 84 230); --bg: rgb(243 239 251); }
+:root[data-palette="doga"] { --accent: rgb(36 160 96); --bg: rgb(236 246 239); }
+:root[data-palette="gunbatimi"] { --accent: rgb(255 112 67); --bg: rgb(252 242 233); }
+:root[data-palette="gul"][data-theme="dark"] { --bg: rgb(16 6 10); --card: rgb(34 22 27); }
+:root[data-palette="okyanus"][data-theme="dark"] { --bg: rgb(2 10 20); --card: rgb(18 28 40); }
+:root[data-palette="lavanta"][data-theme="dark"] { --accent: rgb(170 130 255); --bg: rgb(10 6 20); --card: rgb(29 24 40); }
+:root[data-palette="doga"][data-theme="dark"] { --accent: rgb(60 205 125); --bg: rgb(4 14 8); --card: rgb(20 32 25); }
+:root[data-palette="gunbatimi"][data-theme="dark"] { --accent: rgb(255 140 95); --bg: rgb(18 9 4); --card: rgb(36 26 20); }
+@media (prefers-color-scheme: dark) {
+  :root[data-palette="gul"]:not([data-theme="light"]) { --bg: rgb(16 6 10); --card: rgb(34 22 27); }
+  :root[data-palette="okyanus"]:not([data-theme="light"]) { --bg: rgb(2 10 20); --card: rgb(18 28 40); }
+  :root[data-palette="lavanta"]:not([data-theme="light"]) { --accent: rgb(170 130 255); --bg: rgb(10 6 20); --card: rgb(29 24 40); }
+  :root[data-palette="doga"]:not([data-theme="light"]) { --accent: rgb(60 205 125); --bg: rgb(4 14 8); --card: rgb(20 32 25); }
+  :root[data-palette="gunbatimi"]:not([data-theme="light"]) { --accent: rgb(255 140 95); --bg: rgb(18 9 4); --card: rgb(36 26 20); }
+}
+/* Gece: her zaman koyu (uygulama data-theme="dark" verir) */
+:root[data-palette="gece"] { --accent: rgb(122 132 255); --bg: rgb(5 6 18); --card: rgb(20 22 40); }
+
+/* tema seçici */
+.palettes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 8px; margin-top: 4px; }
+.palette { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--label2); }
+.palette i { width: 52px; height: 52px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .12); transition: transform .4s var(--spring); }
+.palette.on { color: var(--label); }
+.palette.on i { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--accent); }
+.palette:active i { transform: scale(.92); }
+
 /* ---------------------------------------------------------------- temel */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { -webkit-text-size-adjust: 100%; }
@@ -178,7 +208,7 @@ h1, h2, h3, p { margin: 0; }
 /* dokununca cam büyür ve parlar */
 .glass, .btn, .chip, .tile, .seg button, .day { transition: transform .45s var(--spring), background-color .25s ease, box-shadow .25s ease, opacity .2s ease; }
 .glass:active, .btn:active { transform: scale(1.06); }
-.tabbar.glass:active, .sendbar.glass:active, .toast.glass:active { transform: none; }
+.tabbar.glass:active, .sendbar.glass:active, .toast.glass:active, .menu-pop.glass:active { transform: none; }
 .tabbar button { transition: transform .45s var(--spring); }
 .tabbar button:active { transform: scale(1.12); }
 .chip:active, .tile:active, .day:active { transform: scale(.96); }
@@ -194,8 +224,7 @@ h1, h2, h3, p { margin: 0; }
 html.scrolled .edge-top { opacity: 1; }
 .edge-bottom {
   position: fixed; left: 0; right: 0; bottom: 0; height: calc(var(--dock-bottom) + 92px); z-index: 8; pointer-events: none;
-  background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 55%, transparent));
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 22%, transparent));
   -webkit-mask: linear-gradient(transparent, #000 70%); mask: linear-gradient(transparent, #000 70%);
 }
 .navbar {
@@ -216,6 +245,8 @@ html.scrolled .nav-t { opacity: 1; transform: none; }
 /* büyük başlık */
 .lt { padding: calc(var(--safe-top) + 56px) 20px 12px; }
 .lt h1 { font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: .01em; }
+.lt h1, .lt .sub { transition: opacity .2s ease; }
+html.scrolled .lt h1, html.scrolled .lt .sub { opacity: 0; }
 .lt .sub { font-size: 15px; line-height: 20px; color: var(--label2); margin-top: 2px; font-weight: 500; }
 
 main { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 16px; }
@@ -384,6 +415,22 @@ textarea.in { min-height: 90px; resize: vertical; }
   max-width: 568px; display: flex; gap: 10px; align-items: center;
 }
 .tabbar { flex: 1; height: 64px; border-radius: 999px; display: flex; padding: 4px; }
+.tabbar.glass, .fab.glass {
+  background: rgb(255 255 255 / calc(var(--ga) * .55));
+  -webkit-backdrop-filter: blur(10px) saturate(240%) brightness(1.08) contrast(1.05);
+  backdrop-filter: blur(10px) saturate(240%) brightness(1.08) contrast(1.05);
+  box-shadow: 0 14px 36px rgb(0 0 0 / .16), 0 2px 6px rgb(0 0 0 / .08),
+    inset 1.5px 1.5px 1px -1px rgb(255 255 255 / .95), inset -1px -1.5px 1px -1px rgb(255 255 255 / .55),
+    inset 0 0 18px rgb(255 255 255 / .22);
+  --sheen: .75; --rim1: rgb(255 255 255 / 1); --rim2: rgb(255 255 255 / .25);
+}
+.fab.glass.prominent { background: color-mix(in srgb, var(--accent) 82%, transparent); }
+:root[data-theme="dark"] .tab-lens { background: rgb(255 255 255 / .14); }
+:root[data-theme="dark"] .tabbar.glass { background: rgb(30 30 34 / calc(var(--ga) * .8)); box-shadow: 0 14px 36px rgb(0 0 0 / .55), inset 1.5px 1.5px 1px -1px rgb(255 255 255 / .45), inset -1px -1.5px 1px -1px rgb(255 255 255 / .15), inset 0 0 18px rgb(255 255 255 / .05); --sheen: .2; --rim1: rgb(255 255 255 / .5); --rim2: rgb(255 255 255 / .08); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tab-lens { background: rgb(255 255 255 / .14); }
+  :root:not([data-theme="light"]) .tabbar.glass { background: rgb(30 30 34 / calc(var(--ga) * .8)); box-shadow: 0 14px 36px rgb(0 0 0 / .55), inset 1.5px 1.5px 1px -1px rgb(255 255 255 / .45), inset -1px -1.5px 1px -1px rgb(255 255 255 / .15), inset 0 0 18px rgb(255 255 255 / .05); --sheen: .2; --rim1: rgb(255 255 255 / .5); --rim2: rgb(255 255 255 / .08); }
+}
 .tabbar button {
   flex: 1; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   font-size: 10px; line-height: 12px; font-weight: 600; color: var(--label); border-radius: 999px; min-width: 0;
@@ -393,8 +440,8 @@ textarea.in { min-height: 90px; resize: vertical; }
 .tabbar button.on { color: var(--accent); }
 .tab-lens {
   position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / var(--n)); border-radius: 999px;
-  background: var(--fill2); transform: translateX(calc(var(--i) * 100%)); transition: transform .5s var(--spring);
-  box-shadow: inset 0 .5px 0 rgb(255 255 255 / .35);
+  background: rgb(255 255 255 / .42); transform: translateX(calc(var(--i) * 100%)); transition: transform .5s var(--spring);
+  box-shadow: 0 2px 8px rgb(0 0 0 / .08), inset 1px 1px 1px -.5px rgb(255 255 255 / .95), inset -1px -1px 1px -.5px rgb(0 0 0 / .05);
 }
 .fab { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; flex: none; }
 .fab svg { width: 28px; height: 28px; }
@@ -413,6 +460,19 @@ textarea.in { min-height: 90px; resize: vertical; }
 .sendbar b { font-size: 15px; font-weight: 600; }
 .sendbar .e { font-size: 15px; letter-spacing: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sendbar .btn:not(.primary) { background: var(--fill3); }
+
+/* ---------------------------------------------------------------- ⋯ menüsü (iOS cam açılır menü) */
+.menu-bg { position: fixed; inset: 0; z-index: 21; }
+.menu-pop {
+  position: fixed; top: calc(var(--safe-top) + 58px); right: max(16px, calc((100vw - 600px) / 2 + 16px)); z-index: 22;
+  min-width: 230px; border-radius: 26px; padding: 6px; transform-origin: top right; animation: menu .4s var(--spring);
+  background: var(--glass-strong);
+}
+.menu-pop button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 48px; padding: 0 14px; border-radius: 20px; font-size: 17px; text-align: left; }
+.menu-pop button + button { box-shadow: 0 -.5px 0 var(--sep); }
+.menu-pop button:active { background: var(--fill3); }
+.menu-pop svg { width: 21px; height: 21px; color: var(--label); flex: none; }
+@keyframes menu { from { transform: scale(.3); opacity: 0; } }
 
 /* ---------------------------------------------------------------- sayfa (sheet) ve bildirim */
 .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .28); z-index: 20; animation: fade .25s ease; }
