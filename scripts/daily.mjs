@@ -1,5 +1,5 @@
 // Her sabah 10:00 (Türkiye) GitHub Actions çalıştırır: Merve'nin telefonunun hesapladığı haber takviminden
-// bugünün dönem değişimlerini bulur, iki telefona web bildirimi yollar.
+// bugünün dönem değişimlerini bulur, Murat'ın telefonuna web bildirimi yollar (Merve'ye gitmez).
 // Depo herkese açık olduğu için hiçbir içerik loga yazılmaz; sadece sayılar.
 import fs from 'node:fs';
 import webpush from 'web-push';
@@ -49,12 +49,11 @@ if (!items.length) {
 
 webpush.setVapidDetails('https://1murari.github.io/dongumuz/', vapidPublic, vapidPrivate);
 let sent = 0, failed = 0;
-for (const [who, doc] of [['her', 'subher'], ['him', 'subhim']]) {
-  const s = await getDoc(doc);
-  if (!s || !s.sub) continue;
+const sub = await getDoc('subhim');
+if (sub && sub.sub) {
   for (const it of items) {
     try {
-      await webpush.sendNotification(s.sub, JSON.stringify({ title: it[who].t, body: it[who].b, tag: `dongumuz-${today}` }), { TTL: 6 * 3600 });
+      await webpush.sendNotification(sub.sub, JSON.stringify({ title: it.him.t, body: it.him.b, tag: `dongumuz-${today}` }), { TTL: 6 * 3600 });
       sent++;
     } catch (e) {
       failed++;

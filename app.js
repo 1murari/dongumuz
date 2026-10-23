@@ -292,7 +292,11 @@
       for (const r of S.reqs.filter(x => !x.sent).reverse()) {
         await SY.putMsg(S.pair.code, { id: r.id, items: r.items, when: r.when, t: r.t });
         r.sent = true;
-        if (NOTIFY) SY.notify(S.pair.code, 'Döngümüz', `${S.set.her} senden bir şey istiyor 💌`).catch(() => {});
+        if (NOTIFY) {
+          const what = r.items.map(id => { const it = reqItem(id); return it ? `${it.e} ${it.t}` : ''; }).filter(Boolean).join(', ');
+          const w = r.when && C.WHEN.find(x => x.id === r.when);
+          SY.notify(S.pair.code, `💌 ${S.set.her} senden istiyor`, what + (w ? ` · ${w.t}` : '')).catch(() => {});
+        }
       }
       if (!S.pair.linked && (await SY.isLinked(S.pair.code))) S.pair.linked = Date.now();
     } catch (e) { /* internet yok: sonra tekrar denenir */ }
@@ -381,19 +385,19 @@
     const T = today(), E = curE();
     return E && E.ps.length ? newsFor(S.role === 'merve' ? 'her' : 'him', E, T, T) : [];
   }
-  // Merve'nin telefonu önümüzdeki 60 günün haberlerini hesaplar; sunucu her sabah bugününkini yollar
+  // Merve'nin telefonu önümüzdeki 60 günün haberlerini hesaplar; sunucu her sabah bugününkini Murat'a yollar
   function buildSchedule() {
     const T = today(), E = mE(), items = [];
     if (!E.ps.length) return { v: 1, items };
     const merge = arr => ({ t: arr.map((x, i) => (i ? x.title : `${x.e} ${x.title}`)).join(' · '), b: arr.map(x => x.body).join(' ') });
     for (let i = 0; i < 60; i++) {
-      const d = addDays(T, i), her = newsFor('her', E, d, T);
-      if (her.length) items.push({ d, her: merge(her), him: merge(newsFor('him', E, d, T)) });
+      const d = addDays(T, i), him = newsFor('him', E, d, T);
+      if (him.length) items.push({ d, him: merge(him) });
     }
     const st = statusOf(E, T);
     if (st && st.next && !st.late) { // kayıt girilmezse 2. günde "gecikti" haberi
       const d = addDays(st.next, 2);
-      items.push({ d, her: merge([eventText('gecikme', 'her', E, d, T)]), him: merge([eventText('gecikme', 'him', E, d, T)]) });
+      items.push({ d, him: merge([eventText('gecikme', 'him', E, d, T)]) });
       items.sort((a, b) => (a.d < b.d ? -1 : 1));
     }
     return { v: 1, items };
@@ -425,7 +429,7 @@
     if (!sub && ask) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(window.DONGU_CONFIG.vapidPublic) });
     if (!sub) return false;
     if (sub.endpoint !== S.set.pushEndpoint) {
-      await SY.putDoc(S.pair.code, S.role === 'merve' ? 'subher' : 'subhim', { sub: sub.toJSON(), t: Date.now() });
+      await SY.putDoc(S.pair.code, 'subhim', { sub: sub.toJSON(), t: Date.now() }); // sadece Murat abone olur
       S.set.pushEndpoint = sub.endpoint;
     }
     S.set.push = true;
@@ -441,11 +445,10 @@
     render();
   }
   function pushCard(inSettings) {
-    if (!NOTIFY) return '';
+    if (!NOTIFY || S.role !== 'murat') return ''; // dönem bildirimleri sadece Murat'a
     const st = pushState();
     if (!inSettings && (st !== 'off' || S.set.pushHide)) return '';
-    const other = S.role === 'merve' ? S.set.him : S.set.her;
-    const what = `Kanama bitti, doğurgan pencere, yumurtlama, PMS gibi dönem değişimlerinde sabah 10:00’da hem sana hem ${ek(other, 'e')} bildirim gelir.`;
+    const what = `${ek(S.set.her, 'in')} kanaması bitti, doğurgan pencere, yumurtlama, PMS gibi dönem değişimlerinde sabah 10:00’da sana bildirim gelir.`;
     let body;
     if (st === 'on') body = `<p class="small">✓ Açık. ${what}</p><button class="btn block" style="margin-top:12px" data-a="testPush">Test bildirimi</button>`;
     else if (st === 'denied') body = `<p class="small">Bildirim izni kapalı. iPhone <b>Ayarlar → Bildirimler → Döngümüz</b>’den izin ver.</p>`;
@@ -983,7 +986,10 @@
     h += `<section class="card"><h2>👥 Kişiler</h2>
       <div class="btn-row"><label class="f">Takip eden<input class="in" data-in="set.her" value="${esc(s.her)}"></label><label class="f">Partner<input class="in" data-in="set.him" value="${esc(s.him)}"></label></div></section>`;
     const g = s.glass == null ? 50 : s.glass;
-    h += `<section class="card"><h2>✨ Görünüm</h2><p class="small muted">Liquid Glass şeffaflığı (iOS 27’deki gibi). Alttaki sekme çubuğuna bakarak ayarla.</p>
+    h += `<section class="card"><h2>✨ Görünüm</h2>
+      <h3 style="margin-top:0">Tema</h3><div class="seg">${[['auto', 'Otomatik'], ['light', 'Açık'], ['dark', 'Koyu']].map(([id, t]) => `<button class="${(s.theme || 'auto') === id ? 'on' : ''}" data-a="setTheme" data-v="${id}">${t}</button>`).join('')}</div>
+      <p class="tiny muted" style="margin-top:6px">Otomatik: iPhone’un açık/koyu ayarını izler.</p>
+      <h3>Cam şeffaflığı</h3><p class="small muted">Liquid Glass şeffaflığı (iOS 27’deki gibi). Alttaki sekme çubuğuna bakarak ayarla.</p>
       <input class="slider" type="range" min="0" max="100" step="1" value="${g}" style="--val:${g}%" data-in="glass" aria-label="Cam şeffaflığı">
       <div class="slider-labels"><span>Şeffaf</span><span>Buzlu</span></div></section>`;
     h += pushCard(true);
@@ -1011,7 +1017,7 @@
             <li>Bildirim izni sorarsa <b>İzin ver</b>.</li></ol>
           <div class="code small-code">${esc(S.pair.topic)}</div>
           <div class="btn-row"><button class="btn" data-a="copyTopic">Adı kopyala</button><button class="btn" data-a="testNotify">Test bildirimi</button></div>
-          <p class="tiny muted" style="margin-top:8px">Bildirimde sadece “${esc(s.her)} senden bir şey istiyor 💌” yazar; ne istediği uygulamada görünür.</p></section>`;
+          <p class="tiny muted" style="margin-top:8px">Bildirimde ${ek(s.her, 'in')} ne istediği yazar (ör. “🍫 Çikolata, 🔥 Sıcak su torbası”).</p></section>`;
       }
     }
     h += `<section class="card"><h2>💾 Yedek</h2><p class="small muted">Uygulamayı Ana Ekran’a eklediysen veriler kalıcıdır. Yine de arada bir yedek al.</p>
@@ -1080,7 +1086,13 @@
   // iOS 27 cam şeffaflığı: 0 = en şeffaf, 100 = en buzlu
   function applyLook() {
     const g = S.set.glass == null ? 50 : S.set.glass;
-    document.documentElement.style.setProperty('--ga', (0.24 + g / 100 * 0.6).toFixed(3));
+    const root = document.documentElement;
+    root.style.setProperty('--ga', (0.24 + g / 100 * 0.6).toFixed(3));
+    // tema: otomatik (iPhone ayarı) / açık / koyu
+    const th = S.set.theme || 'auto';
+    if (th === 'auto') delete root.dataset.theme; else root.dataset.theme = th;
+    const dark = th === 'dark' || (th === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = dark ? '#000000' : '#f2f2f7'; });
   }
   let lensFrom = -1;
   function render() {
@@ -1213,6 +1225,7 @@
     copyTopic: async () => { try { await navigator.clipboard.writeText(S.pair.topic); toast('Kopyalandı'); } catch (e) { toast('Kopyalanamadı, elle yaz'); } },
     testNotify: () => SY.notify(S.pair.code, 'Döngümüz', 'Test bildirimi ✓ Kurulum tamam.').then(() => toast('Gönderildi, telefonuna baktın mı?'), () => toast('İnternet bağlantısı yok')),
     enablePush: () => enablePush(),
+    setTheme: el => { S.set.theme = el.dataset.v; persist(); render(); },
     hidePush: () => { S.set.pushHide = true; persist(); render(); },
     testPush: async () => {
       try { const reg = await navigator.serviceWorker.ready; await reg.showNotification('Döngümüz', { body: 'Test bildirimi ✓ Sabah 10:00 bildirimleri böyle görünecek.', icon: 'icons/icon-192.png' }); } catch (e) { toast('Bildirim gösterilemedi'); }
@@ -1336,6 +1349,7 @@
     maybeShowNews();
     if (NOTIFY && pushSupported() && Notification.permission === 'granted' && S.set.push) saveSubscription(false).catch(() => {});
     window.addEventListener('online', sync);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyLook);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { softRender(); sync(); } });
     setInterval(() => { if (document.visibilityState === 'visible' && S.role === 'murat') pullNow(); }, 30000);
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

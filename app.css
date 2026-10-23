@@ -60,8 +60,40 @@
 :root[data-phase="pms"] { --amb: var(--orange); }
 :root[data-phase="gecikme"] { --amb: var(--gray); }
 
+/* koyu tema: sistem ayarı (Otomatik) ya da uygulama içi Tema = Koyu */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --red: rgb(255 66 69); --orange: rgb(255 146 48); --yellow: rgb(255 214 0); --green: rgb(48 209 88);
+  --mint: rgb(0 218 195); --teal: rgb(0 210 224); --cyan: rgb(60 211 254); --blue: rgb(0 145 255);
+  --indigo: rgb(109 124 255); --purple: rgb(219 52 242); --pink: rgb(255 55 95);
+
+  --bg: rgb(0 0 0);
+  --card: rgb(28 28 30);
+  --card2: rgb(44 44 46);
+  --label: rgb(255 255 255);
+  --label2: rgb(235 235 245 / .6);
+  --label3: rgb(235 235 245 / .3);
+  --sep: rgb(84 84 88 / .6);
+  --fill: rgb(120 120 128 / .36);
+  --fill2: rgb(120 120 128 / .32);
+  --fill3: rgb(118 118 128 / .24);
+  --fill4: rgb(118 118 128 / .18);
+  --bubble: rgb(38 38 40);
+  --thumb: rgb(99 99 102);
+  --c-fertile-soft: rgb(0 210 224 / .2);
+
+  --glass: rgb(40 40 44 / var(--ga));
+  --glass-strong: rgb(36 36 40 / calc(var(--ga) + .3));
+  --g-hi: rgb(255 255 255 / .38);
+  --g-lo: rgb(255 255 255 / .08);
+  --rim1: rgb(255 255 255 / .42);
+  --rim2: rgb(255 255 255 / .06);
+  --sheen: .16;
+  --g-shadow: 0 12px 34px rgb(0 0 0 / .5), 0 2px 8px rgb(0 0 0 / .3);
+}
+:root[data-theme="light"] { color-scheme: light; }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --red: rgb(255 66 69); --orange: rgb(255 146 48); --yellow: rgb(255 214 0); --green: rgb(48 209 88);
     --mint: rgb(0 218 195); --teal: rgb(0 210 224); --cyan: rgb(60 211 254); --blue: rgb(0 145 255);
     --indigo: rgb(109 124 255); --purple: rgb(219 52 242); --pink: rgb(255 55 95);
